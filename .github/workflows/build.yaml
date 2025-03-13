@@ -1,5 +1,4 @@
-name: Check build
-
+name: Build & Publish
 on:
   pull_request:
     paths:
@@ -7,24 +6,25 @@ on:
   push:
     branches:
       - 'ci-**'
+      - 'main'
+      - 'master'
     paths:
       - 'srcpkgs/**'
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
+permissions:
+  contents: write
+  packages: write
 jobs:
   # Lint changed templates.
   xlint:
     name: Lint templates
     runs-on: ubuntu-latest
-
     container:
       image: 'ghcr.io/void-linux/void-musl-full:20250227R1'
       env:
         LICENSE_LIST: common/travis/license.lst
-
     steps:
       - name: Prepare container
         run: |
@@ -35,53 +35,34 @@ jobs:
           xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash grep curl git
           # create non-root user
           useradd -G xbuilder -M builder
-
       - name: Clone and checkout
         uses: classabbyamp/treeless-checkout-action@v1
-
       - name: Prepare masterdir
         run: |
           chown -R builder:builder . &&
           sudo -Eu builder common/travis/set_mirror.sh &&
           common/travis/fetch-xtools.sh
-
       - name: Find changed templates
         run: sudo -Eu builder common/travis/changed_templates.sh
-
       - name: Run lints
         run: |
           sudo -Eu builder common/travis/verify-update-check.sh || rv=1
           sudo -Eu builder common/travis/xlint.sh || rv=1
           exit "${rv:-0}"
-
-  # Build changed packages.
+  # Build only x86_64 glibc packages.
   build:
-    name: Build packages
+    name: Build x86_64 packages
     runs-on: ubuntu-latest
     if: "!contains(github.event.pull_request.title, '[ci skip]') && !contains(github.event.pull_request.body, '[ci skip]')"
-
     container:
-      image: ghcr.io/void-linux/void-${{ matrix.config.libc }}-full:20250227R1
-      options: --platform ${{ matrix.config.platform }} --privileged
+      image: ghcr.io/void-linux/void-glibc-full:20250227R1
+      options: --platform linux/amd64 --privileged
       volumes:
         - /dev:/dev
       env:
-        ARCH: '${{ matrix.config.arch }}'
-        BOOTSTRAP: '${{ matrix.config.host }}'
-        TEST: '${{ matrix.config.test }}'
-
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - { arch: x86_64,       host: x86_64,      libc: glibc, platform: linux/amd64, test: 1 }
-          - { arch: i686,         host: i686,        libc: glibc, platform: linux/386,   test: 1 }
-          - { arch: aarch64,      host: x86_64,      libc: glibc, platform: linux/amd64, test: 0 }
-          - { arch: armv7l,       host: x86_64,      libc: glibc, platform: linux/amd64, test: 0 }
-          - { arch: x86_64-musl,  host: x86_64-musl, libc: musl,  platform: linux/amd64, test: 1 }
-          - { arch: armv6l-musl,  host: x86_64-musl, libc: musl,  platform: linux/amd64, test: 0 }
-          - { arch: aarch64-musl, host: x86_64-musl, libc: musl,  platform: linux/amd64, test: 0 }
-
+        ARCH: 'x86_64'
+        BOOTSTRAP: 'x86_64'
+        TEST: '1'
     steps:
       - name: Prepare container
         run: |
@@ -89,43 +70,90 @@ jobs:
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
           # install dependencies
-          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash curl git
+          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash curl git jq github-cli
           # create non-root user
           useradd -G xbuilder -M builder
-
       - name: Clone and checkout
         uses: classabbyamp/treeless-checkout-action@v1
-
       - name: Prepare masterdir
         run: |
           chown -R builder:builder . &&
           sudo -Eu builder common/travis/set_mirror.sh &&
           sudo -Eu builder common/travis/prepare.sh &&
           common/travis/fetch-xtools.sh
-
       - name: Find changed templates
         run: sudo -Eu builder common/travis/changed_templates.sh
-
       - name: Build and check packages
-        run: sudo -Eu builder common/travis/build.sh "$BOOTSTRAP" "$ARCH" "$TEST"
-
+        run: sudo -Eu builder common/travis/build.sh "x86_64" "x86_64" "1"
       - name: Show files
-        run: sudo -Eu builder common/travis/show_files.sh "$BOOTSTRAP" "$ARCH"
-
+        run: sudo -Eu builder common/travis/show_files.sh "x86_64" "x86_64"
       - name: Compare to previous
-        run: sudo -Eu builder common/travis/xpkgdiff.sh "$BOOTSTRAP" "$ARCH"
-
+        run: sudo -Eu builder common/travis/xpkgdiff.sh "x86_64" "x86_64"
       - name: Check file conflicts
-        if: matrix.config.arch == 'x86_64' # the arch indexed in xlocate
         run: |
           if [ -s /tmp/templates ]; then
               export XDG_CACHE_HOME="$PWD/.cache"
               sudo -Eu builder xlocate -S &&
               sudo -Eu builder common/scripts/lint-conflicts
           fi
-
       - name: Verify repository state
         run: |
           mkdir -p /check-install &&
           chown builder:builder /check-install &&
-          sudo -Eu builder common/travis/check-install.sh "$BOOTSTRAP" "$ARCH"
+          sudo -Eu builder common/travis/check-install.sh "x86_64" "x86_64"
+      - name: Prepare packages for release
+        run: |
+          # Create a directory for the built packages
+          mkdir -p /packages
+          chown builder:builder /packages
+
+          # Copy built packages to the directory
+          sudo -Eu builder find hostdir/binpkgs -name "*.xbps" -exec cp {} /packages/ \;
+
+          # Generate index
+          cd /packages && sudo -Eu builder xbps-rindex -a *.xbps
+      - name: Delete existing release assets
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/ci-'))
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the release ID for the 'latest' tag
+          RELEASE_ID=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/$GITHUB_REPOSITORY/releases/tags/latest \
+            --jq '.id' 2>/dev/null || echo "")
+
+          if [ ! -z "$RELEASE_ID" ]; then
+            # Get all assets for this release
+            assets=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              /repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets \
+              --jq '.[].id' 2>/dev/null || echo "")
+
+            # Delete each asset
+            for asset_id in $assets; do
+              gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                /repos/$GITHUB_REPOSITORY/releases/assets/$asset_id
+            done
+
+            echo "All assets from the latest release have been deleted"
+          else
+            echo "No release with tag 'latest' found or creating a new one"
+          fi
+      - name: Create Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/ci-'))
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            /packages/*.xbps
+            /packages/x86_64-repodata
+          tag_name: latest
+          name: Latest x86_64 glibc Packages
+          body: |
+            Latest build of x86_64 glibc XBPS packages
+            Built on: ${{ github.event.repository.updated_at }}
+          prerelease: false
