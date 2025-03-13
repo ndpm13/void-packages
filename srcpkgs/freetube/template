@@ -1,0 +1,26 @@
+# Template file for 'freetube'
+pkgname=freetube
+version=0.23.2
+revision=0
+only_for_archs="x86_64"
+hostmakedepends="tar xz"
+short_desc="An open source desktop YouTube player built with privacy in mind."
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="AGPL-3.0"
+homepage="https://freetubeapp.io/"
+distfiles="https://github.com/FreeTubeApp/FreeTube/releases/download/v${version}-beta/freetube_${version}_amd64.deb"
+checksum=02ef86b2b568cb206019942d852161aa242e363461aca28169e961e4fc4966eb
+nostrip=yes
+
+do_extract() {
+  mkdir -p ${DESTDIR}
+  ar x ${XBPS_SRCDISTDIR}/${pkgname}-${version}/freetube_${version}_amd64.deb
+  tar xf data.tar.xz -C ${DESTDIR}
+}
+
+do_install() {
+	vmkdir usr/bin
+  ln -sf /opt/FreeTube/freetube ${DESTDIR}/usr/bin/freetube
+  # Cleanup up
+  rm -rf ${DESTDIR}/etc
+}

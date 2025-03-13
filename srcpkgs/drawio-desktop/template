@@ -1,0 +1,26 @@
+# Template file for 'drawio-desktop'
+pkgname=drawio-desktop
+version=26.0.16
+revision=1
+only_for_archs="x86_64"
+hostmakedepends="tar xz"
+short_desc="Official electron build of draw.io, a client-side JavaScript editor for general diagramming."
+maintainer="ndpm13 <ndpm13@ch-naseem.com>"
+license="Apache-2.0"
+homepage="https://www.diagrams.net/"
+distfiles="https://github.com/jgraph/drawio-desktop/releases/download/v${version}/drawio-amd64-${version}.deb"
+checksum=87157caefae8a28561c95b6638a948e1dd6b96c89eecf6928fbde22d9829d99e
+nostrip=yes
+
+do_extract() {
+  mkdir -p ${DESTDIR}
+  ar x ${XBPS_SRCDISTDIR}/${pkgname}-${version}/drawio-amd64-${version}.deb
+  tar xf data.tar.xz -C ${DESTDIR}
+}
+
+do_install() {
+	vmkdir usr/bin
+  ln -sf /opt/drawio/drawio ${DESTDIR}/usr/bin/drawio
+  # Cleanup up
+  rm -rf ${DESTDIR}/etc
+}

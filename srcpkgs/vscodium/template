@@ -1,0 +1,31 @@
+# Template file for 'vscodium'
+pkgname=vscodium
+version=1.97.2.25045
+revision=1
+only_for_archs="x86_64"
+hostmakedepends="tar xz"
+makedepends=""
+depends=""
+short_desc="Free/Libre Open Source Software Binaries of VSCode"
+maintainer="Naz <ndpm13@ch-naeseem.com>"
+license="MIT"
+homepage="https://vscodium.com/"
+distfiles="https://github.com/VSCodium/vscodium/releases/download/${version}/codium_${version}_amd64.deb"
+checksum=30391f36670191f1753d69984942f16924e93312e08e1e33a1f99f2e14476a19
+
+do_extract() {
+  mkdir -p ${DESTDIR}
+  ar x ${XBPS_SRCDISTDIR}/${pkgname}-${version}/codium_${version}_amd64.deb
+  tar xf data.tar.xz -C ${DESTDIR}
+}
+
+do_install() {
+	vcopy ${DESTDIR}/usr/share/codium /usr/lib/
+
+	vmkdir usr/bin
+	ln -sf /usr/lib/codium/codium ${DESTDIR}/usr/bin/codium
+
+  # Cleanup up
+  rm -rf ${DESTDIR}/etc
+  rm -rf ${DESTDIR}/usr/share/codium
+}
