@@ -1,0 +1,9 @@
+# Template file for 'lutgen-rs'
+pkgname=lutgen-rs
+version=1.0
+revision=1
+metapackage=yes
+depends="lutgen-cli lutgen-studio"
+short_desc="Blazingly fast interpolated LUT generator and applicator for arbitrary and popular color palettes."
+maintainer="Naz <ndpm13@ch-naseem.com>"
+homepage="https://lut.sh/"
