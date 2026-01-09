@@ -1,7 +1,7 @@
 # Template file for 'epiphany'
 pkgname=epiphany
 version=48.5
-revision=1
+revision=2
 build_style=meson
 configure_args="-Dunit_tests=disabled"
 hostmakedepends="gettext glib-devel itstool pkg-config gtk-update-icon-cache

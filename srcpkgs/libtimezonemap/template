@@ -1,7 +1,7 @@
 # Template file for 'libtimezonemap'
 pkgname=libtimezonemap
 version=0.4.6
-revision=2
+revision=3
 build_helper=gir
 build_style=gnu-configure
 hostmakedepends="gobject-introspection automake libtool pkg-config"

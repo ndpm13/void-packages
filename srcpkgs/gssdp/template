@@ -1,7 +1,7 @@
 # Template file for 'gssdp'
 pkgname=gssdp
 version=1.6.3
-revision=1
+revision=2
 build_style=meson
 build_helper="gir"
 configure_args="$(vopt_bool gir vapi) $(vopt_bool gir introspection)

@@ -1,7 +1,7 @@
 # Template file for 'geocode-glib'
 pkgname=geocode-glib
 version=3.26.4
-revision=2
+revision=3
 build_style=meson
 build_helper="gir"
 configure_args="-Denable-gtk-doc=false $(vopt_bool gir enable-introspection)

@@ -1,7 +1,7 @@
 # Template file for 'gnome-network-displays'
 pkgname=gnome-network-displays
 version=0.97.0
-revision=1
+revision=2
 build_style=meson
 hostmakedepends="desktop-file-utils gettext glib-devel gtk4-update-icon-cache
  pkg-config"

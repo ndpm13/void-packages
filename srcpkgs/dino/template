@@ -1,7 +1,7 @@
 # Template file for 'dino'
 pkgname=dino
 version=0.5.1
-revision=1
+revision=2
 build_style=meson
 configure_args="-Dplugin-notification-sound=enabled"
 hostmakedepends="ninja gettext unzip pkg-config vala glib-devel"

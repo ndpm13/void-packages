@@ -1,7 +1,7 @@
 # Template file for 'geoclue2'
 pkgname=geoclue2
 version=2.7.1
-revision=1
+revision=2
 build_style=meson
 build_helper="gir"
 configure_args="-Ddbus-srv-user=_geoclue2 -Dgtk-doc=false
