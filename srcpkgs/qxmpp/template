@@ -1,6 +1,6 @@
 # Template file for 'qxmpp'
 pkgname=qxmpp
-version=1.14.0
+version=1.14.1
 revision=1
 build_style=cmake
 configure_args="-DBUILD_EXAMPLES=false -DBUILD_OMEMO=true -DWITH_GSTREAMER=true -DBUILD_TESTS=false"
@@ -11,7 +11,7 @@ maintainer="Orphaned <orphan@voidlinux.org>"
 license="LGPL-2.1-or-later"
 homepage="https://invent.kde.org/libraries/qxmpp"
 distfiles="https://invent.kde.org/libraries/qxmpp/-/archive/v${version}/qxmpp-v${version}.tar.gz"
-checksum=eeb1c3d5fa5f737761e06ae41a479921e75328622729bea527b21ecd95caadc3
+checksum=d618d6384061de731497e66fb5ec2e62e2d56e47b770196d68a0384c4aa5dde2
 
 qxmpp-devel_package() {
 	short_desc+=" - development files"
