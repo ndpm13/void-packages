@@ -1,25 +1,17 @@
 # Template file for 'clipcat'
 pkgname=clipcat
-version=0.21.1
+version=0.24.0
 revision=1
 archs="x86_64"
-#build_wrksrc=
 build_style=cargo
-#configure_args=""
-#make_build_args=""
-#make_install_args=""
-#conf_files=""
-#make_dirs="/var/log/dir 0755 root root"
 hostmakedepends="pkg-config protobuf"
-makedepends="libgit2-1.8-devel protobuf-devel"
-depends=""
+makedepends="libgit2-1.9-devel protobuf-devel"
 short_desc="Clipboard Manager written in Rust Programming Language"
 maintainer="Naz <ndpm13@ch-naseem.com>"
 license="GPL-3.0-only"
 homepage="https://github.com/xrelkd/clipcat"
-#changelog=""
 distfiles="https://github.com/xrelkd/clipcat/archive/refs/tags/v${version}.tar.gz"
-checksum=a665cb1f8688b12d3fad3d1e2757d355d3bd566d0985573281f6a8a446f1edea
+checksum=27d9b724b36794dd06eb43a26bb71b61c612a0e67252f5bf8707b55f09f48461
 
 do_install() {
 	for pkg in clipcatd clipcatctl clipcat-menu clipcat-notify; do
