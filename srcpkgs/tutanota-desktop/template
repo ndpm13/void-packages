@@ -1,0 +1,62 @@
+# Template file for 'tutanota-desktop'
+pkgname=tutanota-desktop
+version=328.260224.0
+revision=1
+archs="x86_64"
+_argon2commit=f57e61e19229e23c4445b85494dbf7c07de721cb
+_liboqsversion=0.12.0
+_sfecommit=200f65e9a5111c8f7b19fd884f4c942b61a1579b
+build_wrksrc=tutanota-tutanota-release-${version}
+#build_style=
+build_helper="rust"
+build_options=wasm
+build_options_default="wasm"
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="nodejs cargo cargo-auditable git pkg-config rust-wasm"
+makedepends="libzstd-devel"
+depends=""
+short_desc="Tuta official desktop client"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-only"
+homepage="https://tuta.com"
+changelog="https://github.com/tutao/tutanota/releases"
+distfiles="https://github.com/tutao/tutanota/archive/refs/tags/tutanota-release-${version}.tar.gz>${pkgname}-v${version}.tar.gz
+	https://github.com/P-H-C/phc-winner-argon2/archive/${_argon2commit}.tar.gz>argon2-${_argon2commit}.tar.gz
+	https://github.com/open-quantum-safe/liboqs/archive/refs/tags/${_liboqsversion}.tar.gz>liboqs-v${_liboqsversion}.tar.gz
+	https://github.com/tutao/Signal-FTS5-Extension/archive/${_sfecommit}.tar.gz>sfe-${_sfecommit}.tar.gz"
+checksum="a5c6cc1afd4920cd52a026310357c921cddc8451c416df9a0ed4f11206669683
+ ac8c1d819a3b5da231b6549d79e02d0d41dc29469bd0dae94e775c62cb369e0a
+ df999915204eb1eba311d89e83d1edd3a514d5a07374745d6a9e5b2dd0d59c08
+ ab0c727d03963fa38e7a0196bc4827e78f2677bb8fce68d78ff0be511f775a45"
+
+post_extract() {
+	mv phc-winner-argon2-${_argon2commit}/* ${build_wrksrc}/libs/webassembly/phc-winner-argon2
+	mv liboqs-${_liboqsversion}/* ${build_wrksrc}/libs/webassembly/liboqs
+	mv Signal-FTS5-Extension-${_sfecommit}/* ${build_wrksrc}/libs/Signal-FTS5-Extension
+}
+
+pre_build() {
+	npm ci
+}
+
+do_build() {
+	pushd node_modules/@signalapp/sqlcipher/deps/extension
+
+	: ${make_cmd:=cargo auditable}
+	: ${make_verbose:=-v}
+	${make_cmd} build ${XBPS_VERBOSE+${make_verbose}} --release --locked --target ${RUST_TARGET} \
+ 		${configure_args} ${make_build_args}
+
+	popd
+
+	npm run build-packages
+	node desktop --custom-desktop-release --unpacked
+}
+
+do_install() {
+	ls -lah
+}
