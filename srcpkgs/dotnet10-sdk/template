@@ -1,0 +1,55 @@
+# Template file for 'dotnet10-sdk'
+pkgname=dotnet10-sdk
+version=10.0.201
+revision=1
+archs="x86_64"
+#build_wrksrc=
+#build_style=gnu-configure
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="git curl"
+makedepends=""
+depends=""
+short_desc="The .NET Core SDK"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="MIT"
+homepage="https://dotnet.microsoft.com/"
+changelog="https://github.com/dotnet/dotnet/releases/"
+distfiles="https://github.com/dotnet/dotnet/archive/refs/tags/v${version}.tar.gz"
+checksum=a6d8ca84dd7550f4c71bdc9a2eb4108b7b949462634823886bbb343e92814a75
+
+pre_build() {
+	git init .
+	git remote set-url origin https://github.com/dotnet/dotnet.git 2>/dev/null || true
+	./prep-source-build.sh
+}
+
+do_build() {
+	export COMPlus_LTTng=0
+	export VERBOSE=1
+	export OPENSSL_ENABLE_SHA1_SIGNATURES=1
+
+	# malloc_usable_size is incompatible with _FORTIFY_SOURCE=3
+	export EXTRA_CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+	export EXTRA_CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+	export EXTRA_LDFLAGS="$LDFLAGS"
+	unset CFLAGS CXXFLAGS LDFLAGS
+
+	./build.sh --clean-while-building --online --source-build
+}
+
+do_install() {
+	local _sdktar
+	_sdktar=$(echo artifacts/assets/Release/dotnet-sdk-*-linux-x64.tar.gz)
+
+	vmkdir usr/share/dotnet
+	bsdtar -xf "${_sdktar}" -C "${DESTDIR}/usr/share/dotnet/" --no-same-owner
+
+	vmkdir usr/bin
+	ln -sf /usr/share/dotnet/dotnet "${DESTDIR}/usr/bin/dotnet"
+
+	vlicense LICENSE.TXT
+}

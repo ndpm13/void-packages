@@ -1,0 +1,34 @@
+# Template file for 'drawio-desktop'
+pkgname=drawio-desktop
+version=29.5.2
+revision=1
+build_wrksrc="drawio-desktop-${version}"
+archs="x86_64"
+hostmakedepends="nodejs"
+short_desc="Official electron build of draw.io, a JS editor for general diagramming"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-or-later"
+homepage="https://www.diagrams.net/"
+distfiles="https://github.com/jgraph/drawio-desktop/archive/refs/tags/v${version}.tar.gz>drawio-desktop-v${version}.tar.gz
+	https://github.com/jgraph/drawio/archive/refs/tags/v${version}.tar.gz>drawio-v${version}.tar.gz"
+checksum="c1878dca69b21604b73389473434dd94d2f89c71deb2ca09f3c26019523eb992
+	6d6856c183e105a60231fa6d59b65bbaef1d94a4c367e2f1066337bbcf6fbe98"
+
+post_extract() {
+	mv drawio-${version}/* drawio-desktop-${version}/drawio/
+}
+
+pre_build() {
+	npm i
+}
+
+do_build() {
+	npm run release-linux -- --linux dir
+}
+
+do_install() {
+	vcopy dist/linux-unpacked /usr/lib/drawio-desktop
+	vmkdir usr/bin
+	ln -sf /usr/lib/drawio-desktop/drawio ${DESTDIR}/usr/bin/drawio
+	vinstall ${FILESDIR}/drawio.desktop 644 usr/share/applications
+}

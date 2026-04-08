@@ -1,0 +1,33 @@
+# Template file for 'libglib-testing'
+pkgname=libglib-testing
+version=0.1.1
+revision=1
+#archs="i686 x86_64"
+#build_wrksrc=
+build_style=meson
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="pkg-config cmake gtk-doc"
+makedepends="glib-devel"
+depends=""
+short_desc="Test library providing test harnesses and mock classes complementing the classes provided by GLib"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="LGPL-2.1-or-later"
+_baseurl="https://gitlab.gnome.org/pwithnall/libglib-testing"
+homepage="${_baseurl}"
+changelog="${_baseurl}/-/raw/main/NEWS"
+distfiles="${_baseurl}/-/archive/${version}/${pkgname}-${version}.tar.gz"
+checksum=d156e4aaf95008f1a7a86f1f14130c1c7e1a8aa772d4e4924715edd9e521e67c
+
+libglib-testing-devel_package() {
+	short_desc+=" - development files"
+	depends="${sourcepkg}>=${version}_${revision}"
+	pkg_install() {
+		vmove usr/include
+		vmove usr/lib/pkgconfig
+		vmove "usr/lib/*.so"
+	}
+}

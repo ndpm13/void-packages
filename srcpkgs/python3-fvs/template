@@ -1,0 +1,26 @@
+# Template file for 'python3-fvs'
+pkgname=python3-fvs
+version=0.3.4
+revision=1
+#archs="i686 x86_64"
+#build_wrksrc=
+build_style=python3-module
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="python3-setuptools"
+makedepends=""
+depends="python3"
+short_desc="File Versioning System with hash comparison and data storage to create unlinked states that can be deleted"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="MIT"
+homepage="https://github.com/mirkobrombin/FVS"
+changelog="https://github.com/mirkobrombin/FVS/releases"
+distfiles="https://github.com/mirkobrombin/FVS/archive/refs/tags/${version}.tar.gz"
+checksum=c57bcda81cd7500bc54b8f93c81405cccbc4c54b794209f8316ae27f43372696
+
+post_install() {
+	vlicense LICENSE
+}

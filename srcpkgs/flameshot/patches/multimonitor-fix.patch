@@ -1,0 +1,1892 @@
+From 283787d1d8db6dbf063bd81029aec7f58c5e3934 Mon Sep 17 00:00:00 2001
+From: Jeremy Borgman <borgman.jeremy@pm.me>
+Date: Sun, 25 Jan 2026 13:13:32 -0600
+Subject: [PATCH 1/2] Rework capture system to only enter fullscreen widget on
+ one monitor
+
+---
+ PKGBUILD                              |   1 -
+ docs/Sway and wlroots support.md      |   2 +-
+ flameshot.example.ini                 |   6 -
+ src/config/generalconf.cpp            |  28 --
+ src/config/generalconf.h              |   3 -
+ src/core/capturerequest.cpp           |  18 +
+ src/core/capturerequest.h             |   5 +
+ src/utils/CMakeLists.txt              |   1 +
+ src/utils/confighandler.cpp           |   2 -
+ src/utils/confighandler.h             |   2 -
+ src/utils/monitorpreview.cpp          |  81 ++++
+ src/utils/monitorpreview.h            |  37 ++
+ src/utils/screengrabber.cpp           | 601 +++++++++++++++++++-------
+ src/utils/screengrabber.h             |  24 +-
+ src/widgets/capture/capturewidget.cpp | 177 ++++----
+ src/widgets/capturelauncher.cpp       |  85 +++-
+ src/widgets/capturelauncher.h         |   4 +
+ src/widgets/capturelauncher.ui        |  56 +--
+ src/widgets/trayicon.cpp              |  59 ++-
+ src/widgets/trayicon.h                |   4 +
+ 20 files changed, 852 insertions(+), 344 deletions(-)
+ create mode 100644 src/utils/monitorpreview.cpp
+ create mode 100644 src/utils/monitorpreview.h
+
+diff --git a/PKGBUILD b/PKGBUILD
+index 034b4df595..b130adc70d 100644
+--- a/PKGBUILD
++++ b/PKGBUILD
+@@ -10,7 +10,6 @@ depends=('qt6-base' 'qt6-svg' 'hicolor-icon-theme' 'kguiaddons')
+ makedepends=('qt6-tools' 'cmake' 'ninja')
+ optdepends=(
+     'gnome-shell-extension-appindicator: for system tray icon if you are using Gnome'
+-    'grim: for wlroots wayland support'
+     'xdg-desktop-portal: for wayland support, you will need the implementation for your wayland desktop environment'
+     'qt6-imageformats: for additional export image formats (e.g. tiff, webp, and more)'
+ )
+diff --git a/docs/Sway and wlroots support.md b/docs/Sway and wlroots support.md
+index 413287ea03..8138d32871 100644
+--- a/docs/Sway and wlroots support.md	
++++ b/docs/Sway and wlroots support.md	
+@@ -2,7 +2,7 @@
+ Flameshot currently supports Sway and other wlroots based Wayland compositors through [xdg-desktop-portal-wlr](https://github.com/emersion/xdg-desktop-portal-wlr). However, due to the way dbus works, there may be some extra steps required for the integration to work properly.
+ 
+ ## Basic steps
+-The following packages need to be installed: `xdg-desktop-portal xdg-desktop-portal-wlr grim`. Please ensure your distro packages these, or install them manually.
++The following packages need to be installed: `xdg-desktop-portal xdg-desktop-portal-wlr`. Please ensure your distro packages these, or install them manually.
+ 
+ Ensure that environment variables are set properly. If your distro does not set them automatically, use a launch script to export `XDG_CURRENT_DESKTOP=sway` or `XDG_CURRENT_DESKTOP=river` **before** Sway or River is launched.
+ ```sh
+diff --git a/flameshot.example.ini b/flameshot.example.ini
+index ca8467cdd8..c4f5bba022 100644
+--- a/flameshot.example.ini
++++ b/flameshot.example.ini
+@@ -54,12 +54,6 @@
+ ;; Whether the tray icon is disabled (bool)
+ ;disabledTrayIcon=false
+ ;
+-;; Use grim-based wayland universal screenshot adapter (bool)
+-;useGrimAdapter=false
+-;
+-;; Disable Grim Warning notification (bool)
+-;disabledGrimWarning=true
+-;
+ ;; Automatically close daemon when it's not needed (bool)
+ ;; (This option is not available on Windows)
+ ;autoCloseIdleDaemon=false
+diff --git a/src/config/generalconf.cpp b/src/config/generalconf.cpp
+index cd755aea33..06f04ef82c 100644
+--- a/src/config/generalconf.cpp
++++ b/src/config/generalconf.cpp
+@@ -37,7 +37,6 @@ GeneralConf::GeneralConf(QWidget* parent)
+     initAutoCloseIdleDaemon();
+ #endif
+     initShowTrayIcon();
+-    initUseGrimAdapter();
+     initShowDesktopNotification();
+     initShowAbortNotification();
+ #if !defined(DISABLE_UPDATE_CHECKER)
+@@ -124,10 +123,6 @@ void GeneralConf::_updateComponents(bool allowEmptySavePath)
+ #if defined(Q_OS_LINUX) || defined(Q_OS_UNIX)
+     m_showTray->setChecked(!config.disabledTrayIcon());
+ #endif
+-
+-#if defined(Q_OS_LINUX)
+-    m_useGrimAdapter->setChecked(config.useGrimAdapter());
+-#endif
+ }
+ 
+ void GeneralConf::updateComponents()
+@@ -160,11 +155,6 @@ void GeneralConf::showAbortNotificationChanged(bool checked)
+     ConfigHandler().setShowAbortNotification(checked);
+ }
+ 
+-void GeneralConf::useGrimAdapter(bool checked)
+-{
+-    ConfigHandler().useGrimAdapter(checked);
+-}
+-
+ #if !defined(DISABLE_UPDATE_CHECKER)
+ void GeneralConf::checkForUpdatesChanged(bool checked)
+ {
+@@ -343,24 +333,6 @@ void GeneralConf::initShowTrayIcon()
+ #endif
+ }
+ 
+-void GeneralConf::initUseGrimAdapter()
+-{
+-#if defined(Q_OS_LINUX)
+-    m_useGrimAdapter =
+-      new QCheckBox(tr("Use grim to capture screenshots"), this);
+-    m_useGrimAdapter->setToolTip(
+-      tr("Grim is a wayland only utility to capture screens based on the "
+-         "screencopy protocol. Generally only enable on minimal wayland window "
+-         "managers like sway, hyprland, etc."));
+-    m_scrollAreaLayout->addWidget(m_useGrimAdapter);
+-
+-    connect(m_useGrimAdapter,
+-            &QCheckBox::clicked,
+-            this,
+-            &GeneralConf::useGrimAdapter);
+-#endif
+-}
+-
+ void GeneralConf::initHistoryConfirmationToDelete()
+ {
+     m_historyConfirmationToDelete = new QCheckBox(
+diff --git a/src/config/generalconf.h b/src/config/generalconf.h
+index 9bf09b29af..e564c33a63 100644
+--- a/src/config/generalconf.h
++++ b/src/config/generalconf.h
+@@ -38,7 +38,6 @@ private slots:
+     void showSidePanelButtonChanged(bool checked);
+     void showDesktopNotificationChanged(bool checked);
+     void showAbortNotificationChanged(bool checked);
+-    void useGrimAdapter(bool checked);
+ #if !defined(DISABLE_UPDATE_CHECKER)
+     void checkForUpdatesChanged(bool checked);
+ #endif
+@@ -89,7 +88,6 @@ private slots:
+     void initShowSidePanelButton();
+     void initShowStartupLaunchMessage();
+     void initShowTrayIcon();
+-    void initUseGrimAdapter();
+     void initSquareMagnifier();
+     void initUndoLimit();
+     void initUploadWithoutConfirmation();
+@@ -111,7 +109,6 @@ private slots:
+     QCheckBox* m_sysNotifications;
+     QCheckBox* m_abortNotifications;
+     QCheckBox* m_showTray;
+-    QCheckBox* m_useGrimAdapter;
+     QCheckBox* m_helpMessage;
+     QCheckBox* m_sidePanelButton;
+ #if !defined(DISABLE_UPDATE_CHECKER)
+diff --git a/src/core/capturerequest.cpp b/src/core/capturerequest.cpp
+index 6fc76843ad..a4eaae09e7 100644
+--- a/src/core/capturerequest.cpp
++++ b/src/core/capturerequest.cpp
+@@ -18,6 +18,8 @@ CaptureRequest::CaptureRequest(CaptureRequest::CaptureMode mode,
+   , m_delay(delay)
+   , m_tasks(tasks)
+   , m_data(std::move(data))
++  , m_selectedMonitor(-1)
++  , m_hasSelectedMonitor(false)
+ {
+ 
+     ConfigHandler config;
+@@ -86,3 +88,19 @@ void CaptureRequest::setInitialSelection(const QRect& selection)
+ {
+     m_initialSelection = selection;
+ }
++
++void CaptureRequest::setSelectedMonitor(int monitorIndex)
++{
++    m_selectedMonitor = monitorIndex;
++    m_hasSelectedMonitor = true;
++}
++
++int CaptureRequest::selectedMonitor() const
++{
++    return m_selectedMonitor;
++}
++
++bool CaptureRequest::hasSelectedMonitor() const
++{
++    return m_hasSelectedMonitor;
++}
+diff --git a/src/core/capturerequest.h b/src/core/capturerequest.h
+index ac8f885cec..558d483304 100644
+--- a/src/core/capturerequest.h
++++ b/src/core/capturerequest.h
+@@ -49,6 +49,9 @@ class CaptureRequest
+     void addSaveTask(const QString& path = QString());
+     void addPinTask(const QRect& pinWindowGeometry);
+     void setInitialSelection(const QRect& selection);
++    void setSelectedMonitor(int monitorIndex);
++    int selectedMonitor() const;
++    bool hasSelectedMonitor() const;
+ 
+ private:
+     CaptureMode m_mode;
+@@ -57,6 +60,8 @@ class CaptureRequest
+     ExportTask m_tasks;
+     QVariant m_data;
+     QRect m_pinWindowGeometry, m_initialSelection;
++    int m_selectedMonitor;
++    bool m_hasSelectedMonitor;
+ 
+     CaptureRequest() {}
+ };
+diff --git a/src/utils/CMakeLists.txt b/src/utils/CMakeLists.txt
+index 23c868a46e..8c5690a555 100644
+--- a/src/utils/CMakeLists.txt
++++ b/src/utils/CMakeLists.txt
+@@ -14,6 +14,7 @@ target_sources(
+   PRIVATE abstractlogger.cpp
+           filenamehandler.cpp
+           screengrabber.cpp
++          monitorpreview.cpp
+           confighandler.cpp
+           systemnotification.cpp
+           valuehandler.cpp
+diff --git a/src/utils/confighandler.cpp b/src/utils/confighandler.cpp
+index 04ec3b06af..b3ef56a2d0 100644
+--- a/src/utils/confighandler.cpp
++++ b/src/utils/confighandler.cpp
+@@ -79,8 +79,6 @@ static QMap<class QString, QSharedPointer<ValueHandler>>
+     OPTION("showDesktopNotification"     ,Bool               ( true          )),
+     OPTION("showAbortNotification"       ,Bool               ( true          )),
+     OPTION("disabledTrayIcon"            ,Bool               ( false         )),
+-    OPTION("useGrimAdapter"              ,Bool               ( false         )),
+-    OPTION("disabledGrimWarning"         ,Bool               ( false         )),
+     OPTION("historyConfirmationToDelete" ,Bool               ( true          )),
+ #if !defined(DISABLE_UPDATE_CHECKER)
+     OPTION("checkForUpdates"             ,Bool               ( true          )),
+diff --git a/src/utils/confighandler.h b/src/utils/confighandler.h
+index ecc9566536..5387642af3 100644
+--- a/src/utils/confighandler.h
++++ b/src/utils/confighandler.h
+@@ -90,8 +90,6 @@ class ConfigHandler : public QObject
+     CONFIG_GETTER_SETTER(showAbortNotification, setShowAbortNotification, bool)
+     CONFIG_GETTER_SETTER(filenamePattern, setFilenamePattern, QString)
+     CONFIG_GETTER_SETTER(disabledTrayIcon, setDisabledTrayIcon, bool)
+-    CONFIG_GETTER_SETTER(useGrimAdapter, useGrimAdapter, bool)
+-    CONFIG_GETTER_SETTER(disabledGrimWarning, disabledGrimWarning, bool)
+     CONFIG_GETTER_SETTER(drawThickness, setDrawThickness, int)
+     CONFIG_GETTER_SETTER(drawFontSize, setDrawFontSize, int)
+     CONFIG_GETTER_SETTER(drawCircleCounterSize, setDrawCircleCounterSize, int)
+diff --git a/src/utils/monitorpreview.cpp b/src/utils/monitorpreview.cpp
+new file mode 100644
+index 0000000000..eb667d175c
+--- /dev/null
++++ b/src/utils/monitorpreview.cpp
+@@ -0,0 +1,81 @@
++// SPDX-License-Identifier: GPL-3.0-or-later
++// SPDX-FileCopyrightText: 2026 Jeremy Borgman & Contributors
++
++#include "monitorpreview.h"
++#include "src/utils/colorutils.h"
++#include "src/utils/confighandler.h"
++#include <QLabel>
++#include <QMouseEvent>
++#include <QScreen>
++#include <QVBoxLayout>
++
++MonitorPreview::MonitorPreview(int monitorIndex,
++                               QScreen* screen,
++                               const QPixmap& thumbnail,
++                               QWidget* parent)
++  : QWidget(parent)
++  , m_monitorIndex(monitorIndex)
++{
++    QVBoxLayout* layout = new QVBoxLayout(this);
++    layout->setContentsMargins(10, 10, 10, 10);
++    layout->setSpacing(10);
++
++    QLabel* imageLabel = new QLabel(this);
++    imageLabel->setAlignment(Qt::AlignCenter);
++    imageLabel->setPixmap(thumbnail);
++    imageLabel->setStyleSheet(
++      "QLabel { background-color: black; border-radius: 8px; }");
++    imageLabel->setScaledContents(false);
++
++    m_textLabel = new QLabel(tr("Monitor %1: %2\nClick to select")
++                               .arg(m_monitorIndex + 1)
++                               .arg(screen->name()),
++                             this);
++    m_textLabel->setAlignment(Qt::AlignCenter);
++
++    layout->addWidget(imageLabel);
++    layout->addWidget(m_textLabel);
++
++    m_uiColor = ConfigHandler().uiColor();
++    m_contrastColor = ColorUtils::contrastColor(m_uiColor);
++
++    // Apply initial themed background to text label only
++    QString normalStyle =
++      QString("QLabel { color: white; background-color: rgba(%1, %2, %3, 200); "
++              "padding: 5px; font-size: 12pt; border-radius: 3px; }")
++        .arg(m_uiColor.red())
++        .arg(m_uiColor.green())
++        .arg(m_uiColor.blue());
++    m_textLabel->setStyleSheet(normalStyle);
++}
++
++void MonitorPreview::mousePressEvent(QMouseEvent* event)
++{
++    Q_UNUSED(event)
++    emit monitorSelected(m_monitorIndex);
++}
++
++void MonitorPreview::enterEvent(QEnterEvent* event)
++{
++    Q_UNUSED(event)
++    QColor hoverBg = m_contrastColor;
++    QString hoverStyle =
++      QString("QLabel { color: white; background-color: rgba(%1, %2, %3, 220); "
++              "padding: 5px; font-size: 12pt; border-radius: 3px; }")
++        .arg(hoverBg.red())
++        .arg(hoverBg.green())
++        .arg(hoverBg.blue());
++    m_textLabel->setStyleSheet(hoverStyle);
++}
++
++void MonitorPreview::leaveEvent(QEvent* event)
++{
++    Q_UNUSED(event)
++    QString normalStyle =
++      QString("QLabel { color: white; background-color: rgba(%1, %2, %3, 200); "
++              "padding: 5px; font-size: 12pt; border-radius: 3px; }")
++        .arg(m_uiColor.red())
++        .arg(m_uiColor.green())
++        .arg(m_uiColor.blue());
++    m_textLabel->setStyleSheet(normalStyle);
++}
+diff --git a/src/utils/monitorpreview.h b/src/utils/monitorpreview.h
+new file mode 100644
+index 0000000000..78e911d925
+--- /dev/null
++++ b/src/utils/monitorpreview.h
+@@ -0,0 +1,37 @@
++// SPDX-License-Identifier: GPL-3.0-or-later
++// SPDX-FileCopyrightText: 2026 Jeremy Borgman & Contributors
++
++#pragma once
++
++#include <QWidget>
++
++class QScreen;
++class QPixmap;
++class QLabel;
++class QEnterEvent;
++
++class MonitorPreview : public QWidget
++{
++    Q_OBJECT
++public:
++    MonitorPreview(int monitorIndex,
++                   QScreen* screen,
++                   const QPixmap& thumbnail,
++                   QWidget* parent = nullptr);
++
++    int monitorIndex() const { return m_monitorIndex; }
++
++signals:
++    void monitorSelected(int index);
++
++protected:
++    void mousePressEvent(QMouseEvent* event) override;
++    void enterEvent(QEnterEvent* event) override;
++    void leaveEvent(QEvent* event) override;
++
++private:
++    int m_monitorIndex;
++    QColor m_uiColor;
++    QColor m_contrastColor;
++    QLabel* m_textLabel;
++};
+diff --git a/src/utils/screengrabber.cpp b/src/utils/screengrabber.cpp
+index 9b55d16fff..26a5bf9aa3 100644
+--- a/src/utils/screengrabber.cpp
++++ b/src/utils/screengrabber.cpp
+@@ -1,17 +1,28 @@
+-// SPDX-License-Identifier: GPL-3.0-or-later
+-// SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
+ 
+ #include "screengrabber.h"
+ #include "abstractlogger.h"
++#include "monitorpreview.h"
+ #include "src/core/qguiappcurrentscreen.h"
+ #include "src/utils/confighandler.h"
+ #include "src/utils/filenamehandler.h"
+ #include "src/utils/systemnotification.h"
+ #include <QApplication>
++#include <QEventLoop>
+ #include <QGuiApplication>
++#include <QHBoxLayout>
++#include <QImageReader>
++#include <QKeyEvent>
++#include <QLabel>
++#include <QMouseEvent>
+ #include <QPixmap>
+ #include <QProcess>
+ #include <QScreen>
++#include <QTimer>
++#include <QWidget>
++
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++#include <QDebug>
++#endif
+ 
+ #if !(defined(Q_OS_MACOS) || defined(Q_OS_WIN))
+ #include "request.h"
+@@ -22,40 +33,18 @@
+ #include <QUuid>
+ #endif
+ 
++bool ScreenGrabber::m_monitorSelectionActive = false;
++
+ ScreenGrabber::ScreenGrabber(QObject* parent)
+   : QObject(parent)
+-{}
+-
+-void ScreenGrabber::generalGrimScreenshot(bool& ok, QPixmap& res)
++  , m_selectedMonitor(-1)
++  , m_monitorSelectionLoop(nullptr)
++  , m_userCancelled(false)
+ {
+-#if !(defined(Q_OS_MACOS) || defined(Q_OS_WIN))
+-    if (!ConfigHandler().useGrimAdapter()) {
+-        return;
+-    }
+-
+-    QString runDir =
+-      QProcessEnvironment::systemEnvironment().value("XDG_RUNTIME_DIR");
+-    QString imgPath = runDir + "/flameshot.ppm";
+-    QProcess Process;
+-    QString program = "grim";
+-    QStringList arguments;
+-    arguments << "-t"
+-              << "ppm" << imgPath;
+-    Process.start(program, arguments);
+-    if (Process.waitForFinished()) {
+-        res.load(imgPath, "ppm");
+-        QFile imgFile(imgPath);
+-        imgFile.remove();
+-        adjustDevicePixelRatio(res);
+-        ok = true;
+-    } else {
+-        ok = false;
+-        AbstractLogger::error()
+-          << tr("The universal wayland screen capture adapter requires Grim as "
+-                "the screen capture component of wayland. If the screen "
+-                "capture component is missing, please install it!");
+-    }
+-#endif
++    // Increase image allocation limit for large screenshots
++    // (multi-monitor/high-DPI) Default is 128MB, set to 1GB to handle 4K+
++    // multi-monitor setups
++    QImageReader::setAllocationLimit(1024);
+ }
+ 
+ void ScreenGrabber::freeDesktopPortal(bool& ok, QPixmap& res)
+@@ -92,14 +81,14 @@ void ScreenGrabber::freeDesktopPortal(bool& ok, QPixmap& res)
+       this);
+ 
+     QEventLoop loop;
+-    const auto gotSignal = [&res, &loop, this](uint status,
+-                                               const QVariantMap& map) {
++
++    const auto onPortalResponse = [&res, &loop, this](uint status,
++                                                      const QVariantMap& map) {
+         if (status == 0) {
+             // Parse this as URI to handle unicode properly
+             QUrl uri = map.value("uri").toString();
+             QString uriString = uri.toLocalFile();
+             res = QPixmap(uriString);
+-            adjustDevicePixelRatio(res);
+             QFile imgFile(uriString);
+             imgFile.remove();
+         }
+@@ -108,7 +97,17 @@ void ScreenGrabber::freeDesktopPortal(bool& ok, QPixmap& res)
+ 
+     // prevent racy situations and listen before calling screenshot
+     QMetaObject::Connection conn = QObject::connect(
+-      request, &org::freedesktop::portal::Request::Response, gotSignal);
++      request, &org::freedesktop::portal::Request::Response, onPortalResponse);
++
++    QTimer timeout;
++    timeout.setSingleShot(true);
++    timeout.setInterval(30000); // 30 second timeout
++    QObject::connect(&timeout, &QTimer::timeout, &loop, [&loop, this]() {
++        AbstractLogger::error()
++          << tr("Screenshot portal timed out after 30 seconds");
++        loop.quit();
++    });
++    timeout.start();
+ 
+     screenshotInterface.call(
+       QStringLiteral("Screenshot"),
+@@ -117,123 +116,122 @@ void ScreenGrabber::freeDesktopPortal(bool& ok, QPixmap& res)
+                                 { "interactive", QVariant(false) } }));
+ 
+     loop.exec();
++    timeout.stop();
+     QObject::disconnect(conn);
+     request->Close().waitForFinished();
+     request->deleteLater();
+ 
+     if (res.isNull()) {
+         ok = false;
++        return;
++    }
++
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++    qDebug() << tr("FreeDesktop portal screenshot size: %1x%2, DPR: %3")
++                  .arg(res.width())
++                  .arg(res.height())
++                  .arg(res.devicePixelRatio());
++#endif
++#endif
++}
++
++QPixmap ScreenGrabber::selectMonitorAndCrop(const QPixmap& fullScreenshot,
++                                            bool& ok)
++{
++    ok = true;
++#if defined(Q_OS_MACOS)
++    // Avoid showing additional top-level monitor selection UI on macOS
++    // Only screenshot the monitor where the tray activated the screenshot
++    return cropToMonitor(fullScreenshot, 0);
++#else
++    // If there's only one monitor, skip selection
++    const QList<QScreen*> screens = QGuiApplication::screens();
++    if (screens.size() == 1) {
++        return cropToMonitor(fullScreenshot, 0);
++    }
++
++    if (m_monitorSelectionActive) {
++        AbstractLogger::error()
++          << tr("Screenshot already in progress, please wait for the current "
++                "screenshot to complete");
++        ok = false;
++        return QPixmap();
++    }
++
++    m_monitorSelectionActive = true;
++    m_selectedMonitor = -1;
++    m_userCancelled = false;
++    QWidget* container = createMonitorPreviews(fullScreenshot);
++
++    // Wait for user to select a monitor
++    QEventLoop loop;
++    m_monitorSelectionLoop = &loop;
++    loop.exec();
++    m_monitorSelectionLoop = nullptr;
++
++    delete container;
++    m_monitorSelectionActive = false;
++
++    if (m_selectedMonitor >= 0) {
++        return cropToMonitor(fullScreenshot, m_selectedMonitor);
++    } else {
++        ok = false;
++        if (m_userCancelled) {
++            AbstractLogger::info() << tr("Screenshot cancelled");
++        }
++        return fullScreenshot;
+     }
+ #endif
+ }
+ 
+-QPixmap ScreenGrabber::grabEntireDesktop(bool& ok)
++QPixmap ScreenGrabber::grabEntireDesktop(bool& ok, int preSelectedMonitor)
+ {
+     ok = true;
+     int wid = 0;
++    QPixmap screenshot;
+ 
+ #if defined(Q_OS_MACOS)
+     QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+-    QPixmap screenPixmap(
+-      currentScreen->grabWindow(wid,
+-                                currentScreen->geometry().x(),
+-                                currentScreen->geometry().y(),
+-                                currentScreen->geometry().width(),
+-                                currentScreen->geometry().height()));
+-    screenPixmap.setDevicePixelRatio(currentScreen->devicePixelRatio());
+-    return screenPixmap;
++    if (!currentScreen) {
++        AbstractLogger::error() << tr("Unable to get current screen");
++        ok = false;
++        return QPixmap();
++    }
++    const QRect geom = currentScreen->geometry();
++    screenshot = currentScreen->grabWindow(
++      wid, geom.x(), geom.y(), geom.width(), geom.height());
++    screenshot.setDevicePixelRatio(currentScreen->devicePixelRatio());
++    return screenshot;
++
+ #elif defined(Q_OS_LINUX) || defined(Q_OS_UNIX)
+-    if (m_info.waylandDetected()) {
+-        QPixmap res;
+-        // handle screenshot based on DE
+-        switch (m_info.windowManager()) {
+-            case DesktopInfo::GNOME:
+-            case DesktopInfo::KDE:
+-            case DesktopInfo::COSMIC:
+-                freeDesktopPortal(ok, res);
+-                break;
+-            case DesktopInfo::QTILE:
+-            case DesktopInfo::WLROOTS:
+-            case DesktopInfo::HYPRLAND:
+-            case DesktopInfo::OTHER: {
+-                if (!ConfigHandler().useGrimAdapter()) {
+-                    if (!ConfigHandler().disabledGrimWarning()) {
+-                        AbstractLogger::warning() << tr(
+-                          "If the useGrimAdapter setting is not enabled, the "
+-                          "dbus protocol will be used. It should be noted that "
+-                          "using the dbus protocol under wayland is not "
+-                          "recommended. It is recommended to enable the "
+-                          "useGrimAdapter setting in flameshot.ini to activate "
+-                          "the grim-based general wayland screenshot adapter");
+-                    }
+-                    freeDesktopPortal(ok, res);
+-                } else {
+-                    if (!ConfigHandler().disabledGrimWarning()) {
+-                        AbstractLogger::warning() << tr(
+-                          "grim's screenshot component is implemented based on "
+-                          "wlroots, it may not be used in GNOME or similar "
+-                          "desktop environments");
+-                    }
+-                    generalGrimScreenshot(ok, res);
+-                }
+-                break;
+-            }
+-            default:
+-                ok = false;
+-                AbstractLogger::error()
+-                  << tr("Unable to detect desktop environment (GNOME? KDE? "
+-                        "Qile? Sway? ...)");
+-                AbstractLogger::error()
+-                  << tr("Hint: try setting the XDG_CURRENT_DESKTOP environment "
+-                        "variable.");
+-                break;
+-        }
+-        if (!ok) {
+-            AbstractLogger::error() << tr("Unable to capture screen");
+-        }
+-        return res;
++    freeDesktopPortal(ok, screenshot);
++    if (!ok) {
++        AbstractLogger::error() << tr("Unable to capture screen");
++        return QPixmap();
+     }
+-#endif
+-#if defined(Q_OS_LINUX) || defined(Q_OS_UNIX) || defined(Q_OS_WIN)
+-    QRect geometry = desktopGeometry();
+ 
+-    // Qt6 fix: Create a composite image from all screens to handle
+-    // multi-monitor setups where screens have different positions/heights.
+-    // This fixes the dual monitor offset bug and handles edge cases where
+-    // the desktop bounding box includes virtual space.
+-    QScreen* primaryScreen = QGuiApplication::primaryScreen();
+-    QRect r = primaryScreen->geometry();
+-    QPixmap desktop(geometry.size());
+-    desktop.fill(Qt::black); // Fill with black background
+-    desktop =
+-      primaryScreen->grabWindow(wid,
+-                                -r.x() / primaryScreen->devicePixelRatio(),
+-                                -r.y() / primaryScreen->devicePixelRatio(),
+-                                geometry.width(),
+-                                geometry.height());
+-    return desktop;
++#elif defined(Q_OS_WIN)
++    screenshot = windowsScreenshot(wid);
+ #endif
++
++    // If monitor was pre-selected skip UI and crop directly
++    if (preSelectedMonitor >= 0) {
++        const QList<QScreen*> screens = QGuiApplication::screens();
++        if (preSelectedMonitor < screens.size()) {
++            m_selectedMonitor = preSelectedMonitor;
++            return cropToMonitor(screenshot, preSelectedMonitor);
++        }
++    }
++
++    return selectMonitorAndCrop(screenshot, ok);
+ }
+ 
+ QRect ScreenGrabber::screenGeometry(QScreen* screen)
+ {
+-    QRect geometry;
++    QRect geometry = screen->geometry();
+     if (m_info.waylandDetected()) {
+         QPoint topLeft(0, 0);
+-#ifdef Q_OS_WIN
+-        for (QScreen* const screen : QGuiApplication::screens()) {
+-            QPoint topLeftScreen = screen->geometry().topLeft();
+-            if (topLeft.x() > topLeftScreen.x() ||
+-                topLeft.y() > topLeftScreen.y()) {
+-                topLeft = topLeftScreen;
+-            }
+-        }
+-#endif
+-        geometry = screen->geometry();
+         geometry.moveTo(geometry.topLeft() - topLeft);
+-    } else {
+-        QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+-        geometry = currentScreen->geometry();
+     }
+     return geometry;
+ }
+@@ -242,16 +240,21 @@ QPixmap ScreenGrabber::grabScreen(QScreen* screen, bool& ok)
+ {
+     QPixmap p;
+     QRect geometry = screenGeometry(screen);
+-    if (m_info.waylandDetected()) {
+-        p = grabEntireDesktop(ok);
+-        if (ok) {
+-            return p.copy(geometry);
+-        }
+-    } else {
+-        ok = true;
+-        return screen->grabWindow(
+-          0, geometry.x(), geometry.y(), geometry.width(), geometry.height());
++#if defined(Q_OS_LINUX)
++    p = grabEntireDesktop(ok);
++    if (ok) {
++        // Both X11 and Wayland: Use cropToMonitor for consistent handling
++        // of misaligned monitors and mixed DPI
++        const QList<QScreen*> screens = QGuiApplication::screens();
++        int screenIndex = screens.indexOf(screen);
++
++        return cropToMonitor(p, screenIndex);
+     }
++#else
++    ok = true;
++    return screen->grabWindow(
++      0, geometry.x(), geometry.y(), geometry.width(), geometry.height());
++#endif
+     return p;
+ }
+ 
+@@ -261,38 +264,322 @@ QRect ScreenGrabber::desktopGeometry()
+ 
+     for (QScreen* const screen : QGuiApplication::screens()) {
+         QRect scrRect = screen->geometry();
+-        // Qt6 fix: Don't divide by devicePixelRatio for multi-monitor setups
+-        // This was causing coordinate offset issues in dual monitor
+-        // configurations
+-        // But it still has a screen position in real pixels, not logical ones
++#if !defined(Q_OS_WIN)
++        // https://doc.qt.io/qt-6/highdpi.html#device-independent-screen-geometry
+         qreal dpr = screen->devicePixelRatio();
+         scrRect.moveTo(QPointF(scrRect.x() / dpr, scrRect.y() / dpr).toPoint());
++#endif
+         geometry = geometry.united(scrRect);
+     }
+     return geometry;
+ }
+ 
+-QRect ScreenGrabber::logicalDesktopGeometry()
++QScreen* ScreenGrabber::getSelectedScreen() const
+ {
+-    QRect geometry;
+-    for (QScreen* const screen : QGuiApplication::screens()) {
+-        QRect scrRect = screen->geometry();
+-        scrRect.moveTo(scrRect.x(), scrRect.y());
+-        geometry = geometry.united(scrRect);
++    const QList<QScreen*> screens = QGuiApplication::screens();
++
++    if ((m_selectedMonitor < 0) || (m_selectedMonitor >= screens.size())) {
++        return nullptr;
+     }
+-    return geometry;
++
++    return screens[m_selectedMonitor];
+ }
+ 
+-void ScreenGrabber::adjustDevicePixelRatio(QPixmap& pixmap)
++QWidget* ScreenGrabber::createMonitorPreviews(const QPixmap& fullScreenshot)
+ {
+-    QRect physicalGeo = desktopGeometry();
+-    QRect logicalGeo = logicalDesktopGeometry();
+-    if (pixmap.size() == physicalGeo.size()) {
+-        // Pixmap is physical size and Qt's DPR is correct
+-        pixmap.setDevicePixelRatio(qApp->devicePixelRatio());
+-    } else if (pixmap.size() != logicalGeo.size()) {
+-        // Pixmap is physical size but Qt's DPR is incorrect, calculate actual
+-        pixmap.setDevicePixelRatio(pixmap.height() * 1.0f /
+-                                   logicalGeo.height());
++    const QList<QScreen*> screens = QGuiApplication::screens();
++
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++    qDebug() << tr("=== All Screen Information ===");
++    for (int i = 0; i < screens.size(); ++i) {
++        QScreen* s = screens[i];
++        qDebug() << tr("Screen %1: %2").arg(i).arg(s->name());
++        qDebug() << tr("  Logical geometry: %1x%2+%3+%4")
++                      .arg(s->geometry().width())
++                      .arg(s->geometry().height())
++                      .arg(s->geometry().x())
++                      .arg(s->geometry().y());
++        qDebug() << tr("  DPR: %1").arg(s->devicePixelRatio());
+     }
++#endif
++
++    QWidget* monitorPreviews = new QWidget(
++      nullptr, Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
++    monitorPreviews->setAttribute(Qt::WA_TranslucentBackground);
++    monitorPreviews->setStyleSheet(
++      "QWidget { background-color: transparent; }");
++    monitorPreviews->installEventFilter(this); // For ESC key handling
++    monitorPreviews->setFocusPolicy(Qt::StrongFocus);
++
++    QHBoxLayout* containerLayout = new QHBoxLayout(monitorPreviews);
++    containerLayout->setSpacing(20);
++    containerLayout->setContentsMargins(20, 20, 20, 20);
++
++    for (int i = 0; i < screens.size(); ++i) {
++        QScreen* screen = screens[i];
++
++        QPixmap cropped = cropToMonitor(fullScreenshot, i);
++        QPixmap thumbnail = cropped.scaled(
++          400, 250, Qt::KeepAspectRatio, Qt::SmoothTransformation);
++        thumbnail.setDevicePixelRatio(1.0);
++
++        MonitorPreview* preview =
++          new MonitorPreview(i, screen, thumbnail, monitorPreviews);
++
++        connect(
++          preview, &MonitorPreview::monitorSelected, this, [this](int index) {
++              m_selectedMonitor = index;
++              if (m_monitorSelectionLoop) {
++                  m_monitorSelectionLoop->quit();
++              }
++          });
++
++        containerLayout->addWidget(preview);
++    }
++
++    monitorPreviews->setLayout(containerLayout);
++    monitorPreviews->adjustSize();
++
++    QScreen* primaryScreen = QGuiApplication::primaryScreen();
++    QRect screenGeometry = primaryScreen->geometry();
++    QPoint center = screenGeometry.center();
++    monitorPreviews->move(center.x() - monitorPreviews->width() / 2,
++                          center.y() - monitorPreviews->height() / 2);
++
++    monitorPreviews->show();
++    return monitorPreviews;
++}
++
++bool ScreenGrabber::eventFilter(QObject* obj, QEvent* event)
++{
++    if (event->type() == QEvent::KeyPress) {
++        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
++        if (keyEvent->key() == Qt::Key_Escape) {
++            // User cancelled selection
++            m_selectedMonitor = -1;
++            m_userCancelled = true;
++            if (m_monitorSelectionLoop) {
++                m_monitorSelectionLoop->quit();
++            }
++            return true;
++        }
++    }
++    return QObject::eventFilter(obj, event);
++}
++
++QPixmap ScreenGrabber::cropToMonitor(const QPixmap& fullScreenshot,
++                                     int monitorIndex)
++{
++    const QList<QScreen*> screens = QGuiApplication::screens();
++    if (monitorIndex >= screens.size()) {
++        return fullScreenshot;
++    }
++
++    QScreen* targetScreen = screens[monitorIndex];
++    QRect targetGeometry = targetScreen->geometry();
++    qreal targetDpr = targetScreen->devicePixelRatio();
++
++    // Calculate total logical dimensions and minimum coordinates
++    int minX = 0, minY = 0;
++    int maxX = 0, maxY = 0;
++
++    for (QScreen* screen : screens) {
++        QRect geo = screen->geometry();
++        minX = qMin(minX, geo.x());
++        minY = qMin(minY, geo.y());
++        maxX = qMax(maxX, geo.x() + geo.width());
++        maxY = qMax(maxY, geo.y() + geo.height());
++    }
++
++    int totalLogicalWidth = maxX - minX;
++    int totalLogicalHeight = maxY - minY;
++
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++    qDebug() << tr("Total logical dimensions: %1x%2 (min: %3,%4)")
++                  .arg(totalLogicalWidth)
++                  .arg(totalLogicalHeight)
++                  .arg(minX)
++                  .arg(minY);
++    qDebug() << tr("Screenshot dimensions: %1x%2")
++                  .arg(fullScreenshot.width())
++                  .arg(fullScreenshot.height());
++#endif
++
++    int cropX, cropY, cropWidth, cropHeight;
++
++#if defined(Q_OS_LINUX)
++    // Linux (both X11 and Wayland via freedesktop portal):
++    // Use logical coordinate-based cropping since portal returns full
++    // desktop
++    qreal screenshotScaleX = (qreal)fullScreenshot.width() / totalLogicalWidth;
++    qreal screenshotScaleY =
++      (qreal)fullScreenshot.height() / totalLogicalHeight;
++
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++    qDebug() << tr("Screenshot scale factors: X=%1 Y=%2")
++                  .arg(screenshotScaleX)
++                  .arg(screenshotScaleY);
++#endif
++
++    cropX = qRound((targetGeometry.x() - minX) * screenshotScaleX);
++    cropY = qRound((targetGeometry.y() - minY) * screenshotScaleY);
++    cropWidth = qRound(targetGeometry.width() * screenshotScaleX);
++    cropHeight = qRound(targetGeometry.height() * screenshotScaleY);
++#else
++    // Windows: Calculate physical pixel positions for mixed DPI
++    cropX = 0;
++    cropY = 0;
++
++    for (QScreen* screen : screens) {
++        QRect geom = screen->geometry();
++        qreal dpr = screen->devicePixelRatio();
++
++        // Sum physical widths of screens completely to the left
++        if (geom.x() + geom.width() <= targetGeometry.x()) {
++            cropX += qRound(geom.width() * dpr);
++        }
++
++        // Sum physical heights of screens completely above
++        if (geom.y() + geom.height() <= targetGeometry.y()) {
++            cropY += qRound(geom.height() * dpr);
++        }
++    }
++
++    cropWidth = qRound(targetGeometry.width() * targetDpr);
++    cropHeight = qRound(targetGeometry.height() * targetDpr);
++
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++    qDebug() << tr("Calculated crop position for mixed DPI: X=%1 Y=%2")
++                  .arg(cropX)
++                  .arg(cropY);
++#endif
++#endif
++
++    QRect cropRect(cropX, cropY, cropWidth, cropHeight);
++
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++    qDebug() << tr("Screen %1: %2").arg(monitorIndex).arg(targetScreen->name());
++    qDebug() << tr("  Logical geometry: %1x%2+%3+%4 DPR: %5")
++                  .arg(targetGeometry.width())
++                  .arg(targetGeometry.height())
++                  .arg(targetGeometry.x())
++                  .arg(targetGeometry.y())
++                  .arg(targetDpr);
++    qDebug() << tr("  Crop rect in screenshot: %1x%2+%3+%4")
++                  .arg(cropRect.width())
++                  .arg(cropRect.height())
++                  .arg(cropRect.x())
++                  .arg(cropRect.y());
++#endif
++
++    // Ensure crop rect is within bounds
++    cropRect = cropRect.intersected(
++      QRect(0, 0, fullScreenshot.width(), fullScreenshot.height()));
++
++    if (cropRect.isEmpty()) {
++        AbstractLogger::warning()
++          << tr("Crop rect is empty, returning full screenshot");
++        return fullScreenshot;
++    }
++
++    QPixmap cropped = fullScreenshot.copy(cropRect);
++
++#if defined(Q_OS_LINUX)
++    // Linux: May need rescaling if scale factors don't match
++    if (qAbs(screenshotScaleX - targetDpr) > 0.01) {
++        int targetPhysicalWidth = qRound(targetGeometry.width() * targetDpr);
++        int targetPhysicalHeight = qRound(targetGeometry.height() * targetDpr);
++        cropped = cropped.scaled(targetPhysicalWidth,
++                                 targetPhysicalHeight,
++                                 Qt::IgnoreAspectRatio,
++                                 Qt::SmoothTransformation);
++    }
++#ifdef FLAMESHOT_DEBUG_CAPTURE
++    qDebug() << tr("Scaling screenshot to: %1 %2")
++                  .arg(targetPhysicalWidth)
++                  .arg(targetPhysicalHeight);
++#endif
++
++#endif
++    // Cropped region should be at target monitor's native DPR
++    cropped.setDevicePixelRatio(targetDpr);
++
++    return cropped;
++}
++
++QPixmap ScreenGrabber::windowsScreenshot(int wid)
++{
++    const QList<QScreen*> screens = QGuiApplication::screens();
++    QRect geometry = desktopGeometry();
++
++    int canvasWidth = 0;
++    int canvasHeight = 0;
++
++    // Build a map tracking where each screen should be positioned in
++    // physical pixels
++    struct ScreenInfo
++    {
++        QRect physicalRect; // Where to draw in the canvas
++        QPixmap pixmap;
++    };
++    QMap<QScreen*, ScreenInfo> screenInfos;
++
++    int minLogicalX = geometry.x();
++    int minLogicalY = geometry.y();
++
++    for (QScreen* screen : screens) {
++        QRect screenGeom = screen->geometry();
++        qreal screenDpr = screen->devicePixelRatio();
++
++        QPixmap screenPixmap = screen->grabWindow(wid);
++        screenPixmap.setDevicePixelRatio(1.0);
++
++        int logicalX = screenGeom.x() - minLogicalX;
++        int logicalY = screenGeom.y() - minLogicalY;
++
++        int physicalWidth = screenPixmap.width();
++        int physicalHeight = screenPixmap.height();
++
++        int physicalX = 0;
++        int physicalY = 0;
++
++        for (QScreen* otherScreen : screens) {
++            QRect otherGeom = otherScreen->geometry();
++            qreal otherDpr = otherScreen->devicePixelRatio();
++
++            // If this screen is entirely to the left of current screen
++            if (otherGeom.x() + otherGeom.width() <= screenGeom.x()) {
++                physicalX += qRound(otherGeom.width() * otherDpr);
++            }
++
++            // If this screen is entirely above the current screen
++            if (otherGeom.y() + otherGeom.height() <= screenGeom.y()) {
++                physicalY += qRound(otherGeom.height() * otherDpr);
++            }
++        }
++
++        ScreenInfo info;
++        info.physicalRect =
++          QRect(physicalX, physicalY, physicalWidth, physicalHeight);
++        info.pixmap = screenPixmap;
++        screenInfos[screen] = info;
++
++        canvasWidth = qMax(canvasWidth, physicalX + physicalWidth);
++        canvasHeight = qMax(canvasHeight, physicalY + physicalHeight);
++    }
++
++    // Composite all screens onto canvas
++    QPixmap desktop(canvasWidth, canvasHeight);
++    desktop.fill(Qt::black);
++
++    QPainter painter(&desktop);
++    painter.setCompositionMode(QPainter::CompositionMode_Source);
++
++    for (QScreen* screen : screens) {
++        const ScreenInfo& info = screenInfos[screen];
++        painter.drawPixmap(info.physicalRect.topLeft(), info.pixmap);
++    }
++    painter.end();
++
++    return desktop;
+ }
+diff --git a/src/utils/screengrabber.h b/src/utils/screengrabber.h
+index d38ab13c8d..d42c88c960 100644
+--- a/src/utils/screengrabber.h
++++ b/src/utils/screengrabber.h
+@@ -4,23 +4,43 @@
+ #pragma once
+ 
+ #include "src/utils/desktopinfo.h"
++#include <QEvent>
++#include <QList>
+ #include <QObject>
++#include <QPixmap>
+ #include <QScreen>
+ 
++class QEventLoop;
++class QWidget;
++
+ class ScreenGrabber : public QObject
+ {
+     Q_OBJECT
+ public:
+     explicit ScreenGrabber(QObject* parent = nullptr);
+-    QPixmap grabEntireDesktop(bool& ok);
++    QPixmap grabEntireDesktop(bool& ok, int preSelectedMonitor = -1);
+     QRect screenGeometry(QScreen* screen);
+     QPixmap grabScreen(QScreen* screenNumber, bool& ok);
+     void freeDesktopPortal(bool& ok, QPixmap& res);
+-    void generalGrimScreenshot(bool& ok, QPixmap& res);
+     QRect desktopGeometry();
+     QRect logicalDesktopGeometry();
++    int getSelectedMonitor() const { return m_selectedMonitor; }
++    QScreen* getSelectedScreen() const;
++    QPixmap selectMonitorAndCrop(const QPixmap& fullScreenshot, bool& ok);
++
++protected:
++    bool eventFilter(QObject* obj, QEvent* event) override;
+ 
+ private:
+     void adjustDevicePixelRatio(QPixmap& pixmap);
++    QWidget* createMonitorPreviews(const QPixmap& fullScreenshot);
++    QPixmap cropToMonitor(const QPixmap& fullScreenshot, int monitorIndex);
++    QPixmap windowsScreenshot(int wid);
++
+     DesktopInfo m_info;
++    QPixmap Screenshot;
++    int m_selectedMonitor;
++    QEventLoop* m_monitorSelectionLoop;
++    bool m_userCancelled;
++    static bool m_monitorSelectionActive;
+ };
+diff --git a/src/widgets/capture/capturewidget.cpp b/src/widgets/capture/capturewidget.cpp
+index 9ad8053ab8..9a6fee012a 100644
+--- a/src/widgets/capture/capturewidget.cpp
++++ b/src/widgets/capture/capturewidget.cpp
+@@ -35,6 +35,7 @@
+ #include <QPainter>
+ #include <QScreen>
+ #include <QShortcut>
++#include <QWindow>
+ #include <draggablewidgetmaker.h>
+ 
+ #if !defined(DISABLE_UPDATE_CHECKER)
+@@ -101,48 +102,67 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
+     m_contrastUiColor = m_config.contrastUiColor();
+     setMouseTracking(true);
+     initContext(fullScreen, req);
++
++    ScreenGrabber grabber;
++    QScreen* selectedScreen = nullptr;
++
+ #if (defined(Q_OS_WIN) || defined(Q_OS_MACOS))
+     // Top left of the whole set of screens
+     QPoint topLeft(0, 0);
+ #endif
+     if (fullScreen) {
+-        // Grab Screenshot
+         bool ok = true;
+-        m_context.screenshot = ScreenGrabber().grabEntireDesktop(ok);
++        int preSelectedMonitor;
++        if (req.hasSelectedMonitor()) {
++            preSelectedMonitor = req.selectedMonitor();
++        } else {
++            preSelectedMonitor = -1;
++        }
++        m_context.screenshot =
++          grabber.grabEntireDesktop(ok, preSelectedMonitor);
+         if (!ok) {
+-            AbstractLogger::error() << tr("Unable to capture screen");
++            // Error already logged in ScreenGrabber
+             this->close();
+         }
+         m_context.origScreenshot = m_context.screenshot;
+ 
++        selectedScreen = grabber.getSelectedScreen();
++
+ #if defined(Q_OS_WIN)
+-// Call cmake with -DFLAMESHOT_DEBUG_CAPTURE=ON to enable easier debugging
+ #if !defined(FLAMESHOT_DEBUG_CAPTURE)
+         setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint |
+                        Qt::SubWindow // Hides the taskbar icon
+         );
+ #endif
++        // Position the window at the selected screen's position
++        // (or the topLeft of all screens if no specific screen was selected)
++        if (selectedScreen) {
++            move(selectedScreen->geometry().topLeft());
++        } else {
++            for (QScreen* const screen : QGuiApplication::screens()) {
++                QPoint topLeftScreen = screen->geometry().topLeft();
+ 
+-        for (QScreen* const screen : QGuiApplication::screens()) {
+-            QPoint topLeftScreen = screen->geometry().topLeft();
+-
+-            if (topLeftScreen.x() < topLeft.x()) {
+-                topLeft.setX(topLeftScreen.x());
+-            }
+-            if (topLeftScreen.y() < topLeft.y()) {
+-                topLeft.setY(topLeftScreen.y());
++                if (topLeftScreen.x() < topLeft.x()) {
++                    topLeft.setX(topLeftScreen.x());
++                }
++                if (topLeftScreen.y() < topLeft.y()) {
++                    topLeft.setY(topLeftScreen.y());
++                }
+             }
++            move(topLeft);
++        }
++        // On Windows, account for DPR when sizing the window
++        QSize windowSize = pixmap().size();
++        if (pixmap().devicePixelRatio() > 1.0) {
++            windowSize = QSize(pixmap().width() / pixmap().devicePixelRatio(),
++                               pixmap().height() / pixmap().devicePixelRatio());
++        }
++        resize(windowSize);
++
++        if (selectedScreen != nullptr && windowHandle()) {
++            windowHandle()->setScreen(selectedScreen);
+         }
+-        move(topLeft);
+-        resize(pixmap().size());
+ #elif defined(Q_OS_MACOS)
+-        // Emulate fullscreen mode
+-        //        setWindowFlags(Qt::WindowStaysOnTopHint |
+-        //        Qt::BypassWindowManagerHint |
+-        //                       Qt::FramelessWindowHint |
+-        //                       Qt::NoDropShadowWindowHint | Qt::ToolTip |
+-        //                       Qt::Popup
+-        //                       );
+         QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+         move(currentScreen->geometry().x(), currentScreen->geometry().y());
+         resize(currentScreen->size());
+@@ -152,54 +172,35 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
+ #if !defined(FLAMESHOT_DEBUG_CAPTURE)
+         setWindowFlags(Qt::BypassWindowManagerHint | Qt::WindowStaysOnTopHint |
+                        Qt::FramelessWindowHint | Qt::Tool);
+-        // Fix for Qt6 dual monitor offset: position widget to cover entire
+-        // desktop
+-        QRect desktopGeom = ScreenGrabber().desktopGeometry();
+-        move(desktopGeom.topLeft());
+-        resize(desktopGeom.size());
+ #endif
+-        // Need to move to the top left screen
+-        QPoint topLeft(0, INT_MAX);
+-        for (QScreen* const screen : QGuiApplication::screens()) {
+-            qreal dpr = screen->devicePixelRatio();
+-            QPoint topLeftScreen = screen->geometry().topLeft() / dpr;
+-            if (topLeftScreen.x() == 0) {
+-                if (topLeftScreen.y() < topLeft.y()) {
+-                    topLeft.setY(topLeftScreen.y());
+-                }
+-            }
++
++        // Always display on the selected screen (not spanning entire desktop)
++        if (selectedScreen == nullptr) {
++            selectedScreen = QGuiApplication::primaryScreen();
++        }
++        QRect screenGeom = selectedScreen->geometry();
++        move(screenGeom.topLeft());
++        resize(screenGeom.size());
++
++        if (selectedScreen != nullptr && windowHandle()) {
++            windowHandle()->setScreen(selectedScreen);
+         }
+-        move(topLeft);
+ #endif
+     }
++
+     QVector<QRect> areas;
+     if (m_context.fullscreen) {
+-        QPoint topLeftOffset = QPoint(0, 0);
+-#if defined(Q_OS_WIN)
+-        topLeftOffset = topLeft;
+-#endif
+-
+-#if defined(Q_OS_MACOS)
+-        // MacOS works just with one active display, so we need to append
+-        // just one current display and keep multiple displays logic for
+-        // other OS
+-        QRect r;
+-        QScreen* screen = QGuiAppCurrentScreen().currentScreen();
+-        r = screen->geometry();
+-        // all calculations are processed according to (0, 0) start
+-        // point so we need to move current object to (0, 0)
++        // Always display on a single screen, normalized to (0, 0)
++        QScreen* screenForAreas = selectedScreen;
++        if (!screenForAreas) {
++            screenForAreas = QGuiAppCurrentScreen().currentScreen();
++        }
++        if (!screenForAreas) {
++            screenForAreas = QGuiApplication::primaryScreen();
++        }
++        QRect r = screenForAreas ? screenForAreas->geometry() : QRect();
+         r.moveTo(0, 0);
+         areas.append(r);
+-#else
+-        // LINUX & WINDOWS
+-        for (QScreen* const screen : QGuiApplication::screens()) {
+-            QRect r = screen->geometry();
+-            r.moveTo(r.x() / screen->devicePixelRatio(),
+-                     r.y() / screen->devicePixelRatio());
+-            r.moveTo(r.topLeft() - topLeftOffset);
+-            areas.append(r);
+-        }
+-#endif
+     } else {
+         areas.append(rect());
+     }
+@@ -269,15 +270,11 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
+                 OverlayMessage::instance()->update();
+             });
+ 
+-    // Qt6 has only sizes in logical values, position is in physical values.
+-    // Move Help message to the logical pixel with devicePixelRatio.
+-    QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+-    QRect currentScreenGeometry = currentScreen->geometry();
+-    qreal currentScreenDpr = currentScreen->devicePixelRatio();
+-    currentScreenGeometry.moveTo(
+-      int(currentScreenGeometry.x() / currentScreenDpr),
+-      int(currentScreenGeometry.y() / currentScreenDpr));
+-    OverlayMessage::init(this, currentScreenGeometry);
++    // OverlayMessage is a child widget, so use widget-local coordinates
++    // In fullscreen mode, use the normalized area; otherwise use widget rect
++    QRect overlayArea =
++      m_context.fullscreen && !areas.isEmpty() ? areas.first() : rect();
++    OverlayMessage::init(this, overlayArea);
+ 
+     if (m_config.showHelp()) {
+         initHelpMessage();
+@@ -1063,8 +1060,16 @@ void CaptureWidget::setToolSize(int size)
+     m_context.toolSize = qBound(1, size, maxToolSize);
+     updateTool(activeButtonTool());
+ 
+-    QPoint topLeft =
+-      QGuiAppCurrentScreen().currentScreen()->geometry().topLeft();
++    QScreen* topLeftScreen = QGuiAppCurrentScreen().currentScreen();
++    QPoint topLeft(0, 0);
++    if (topLeftScreen) {
++        topLeft = topLeftScreen->geometry().topLeft();
++    } else {
++        QScreen* primary = QGuiApplication::primaryScreen();
++        if (primary) {
++            topLeft = primary->geometry().topLeft();
++        }
++    }
+     int offset = m_notifierBox->width() / 4;
+     m_notifierBox->move(mapFromGlobal(topLeft) + QPoint(offset, offset));
+     m_notifierBox->showMessage(QString::number(m_context.toolSize));
+@@ -1186,22 +1191,10 @@ void CaptureWidget::initContext(bool fullscreen, const CaptureRequest& req)
+ 
+ void CaptureWidget::initPanel()
+ {
++    // Use widget-local coordinates (rect()) for all child widgets
++    // Child widgets use parent-relative coordinate system, not global screen
++    // coords
+     QRect panelRect = rect();
+-    if (m_context.fullscreen) {
+-#if (defined(Q_OS_MACOS) || defined(Q_OS_LINUX))
+-        QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+-        panelRect = currentScreen->geometry();
+-        auto devicePixelRatio = currentScreen->devicePixelRatio();
+-        panelRect.moveTo(static_cast<int>(panelRect.x() / devicePixelRatio),
+-                         static_cast<int>(panelRect.y() / devicePixelRatio));
+-#else
+-        panelRect = QGuiApplication::primaryScreen()->geometry();
+-        auto devicePixelRatio =
+-          QGuiApplication::primaryScreen()->devicePixelRatio();
+-        panelRect.moveTo(panelRect.x() / devicePixelRatio,
+-                         panelRect.y() / devicePixelRatio);
+-#endif
+-    }
+ 
+     if (ConfigHandler().showSidePanelButton()) {
+         auto* panelToggleButton =
+@@ -1216,6 +1209,8 @@ void CaptureWidget::initPanel()
+           static_cast<int>(panelRect.height() / 2) -
+             static_cast<int>(panelToggleButton->width() / 2));
+ #else
++        // panelRect is already adjusted for DPR, so centering calculations work
++        // correctly
+         panelToggleButton->move(panelRect.x(),
+                                 panelRect.y() + panelRect.height() / 2 -
+                                   panelToggleButton->width() / 2);
+@@ -1232,12 +1227,10 @@ void CaptureWidget::initPanel()
+     m_panel->hide();
+     makeChild(m_panel);
+ #if defined(Q_OS_MACOS)
+-    QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+-    panelRect.moveTo(mapFromGlobal(panelRect.topLeft()));
+     m_panel->setFixedWidth(static_cast<int>(m_colorPicker->width() * 1.5));
+-    m_panel->setFixedHeight(currentScreen->geometry().height());
++    m_panel->setFixedHeight(height());
+ #else
+-    panelRect.moveTo(mapFromGlobal(panelRect.topLeft()));
++    // Panel uses widget-local coordinates (parent-relative)
+     panelRect.setWidth(m_colorPicker->width() * 1.5);
+     m_panel->setGeometry(panelRect);
+ #endif
+@@ -1363,8 +1356,6 @@ void CaptureWidget::initSelection()
+     });
+     if (!initialSelection.isNull()) {
+         const qreal scale = m_context.screenshot.devicePixelRatio();
+-        initialSelection.moveTopLeft(initialSelection.topLeft() -
+-                                     mapToGlobal(QPoint(0, 0)));
+         initialSelection.setTop(initialSelection.top() / scale);
+         initialSelection.setBottom(initialSelection.bottom() / scale);
+         initialSelection.setLeft(initialSelection.left() / scale);
+diff --git a/src/widgets/capturelauncher.cpp b/src/widgets/capturelauncher.cpp
+index 69f742964a..112d113f02 100644
+--- a/src/widgets/capturelauncher.cpp
++++ b/src/widgets/capturelauncher.cpp
+@@ -10,7 +10,9 @@
+ #include "src/utils/screengrabber.h"
+ #include "src/utils/screenshotsaver.h"
+ #include "src/widgets/imagelabel.h"
++#include <QGuiApplication>
+ #include <QMimeData>
++#include <QScreen>
+ 
+ // https://github.com/KDE/spectacle/blob/941c1a517be82bed25d1254ebd735c29b0d2951c/src/Gui/KSWidget.cpp
+ // https://github.com/KDE/spectacle/blob/941c1a517be82bed25d1254ebd735c29b0d2951c/src/Gui/KSMainWindow.cpp
+@@ -18,6 +20,8 @@
+ CaptureLauncher::CaptureLauncher(QDialog* parent)
+   : QDialog(parent)
+   , ui(new Ui::CaptureLauncher)
++  , m_countdownTimer(new QTimer(this))
++  , m_remainingSeconds(0)
+ {
+     qApp->installEventFilter(this); // see eventFilter()
+     ui->setupUi(this);
+@@ -25,10 +29,6 @@ CaptureLauncher::CaptureLauncher(QDialog* parent)
+     setWindowIcon(QIcon(GlobalValues::iconPath()));
+     bool ok;
+ 
+-    ui->imagePreview->setScreenshot(ScreenGrabber().grabEntireDesktop(ok));
+-    ui->imagePreview->setSizePolicy(QSizePolicy::Expanding,
+-                                    QSizePolicy::Expanding);
+-
+     ui->captureType->insertItem(
+       1, tr("Rectangular Region"), CaptureRequest::GRAPHICAL_MODE);
+ 
+@@ -40,11 +40,44 @@ CaptureLauncher::CaptureLauncher(QDialog* parent)
+ #else
+     ui->captureType->insertItem(
+       2, tr("Full Screen (All Monitors)"), CaptureRequest::FULLSCREEN_MODE);
++    const QList<QScreen*> screens = QGuiApplication::screens();
++    for (int i = 0; i < screens.size(); ++i) {
++        QScreen* screen = screens[i];
++        QRect geom = screen->geometry();
++        QString monitorText = tr("Monitor %1: %2 (%3x%4)")
++                                .arg(i + 1)
++                                .arg(screen->name())
++                                .arg(geom.width())
++                                .arg(geom.height());
++        ui->monitorSelection->addItem(monitorText, i);
++    }
++    // Select current screen by default
++    QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
++    int currentIndex = screens.indexOf(currentScreen);
++    if (currentIndex >= 0) {
++        ui->monitorSelection->setCurrentIndex(currentIndex);
++    }
++#endif
++
++#ifdef Q_OS_MACOS
++    ui->monitorLabel->setVisible(false);
++    ui->monitorSelection->setVisible(false);
+ #endif
+ 
+     ui->delayTime->setSpecialValueText(tr("No Delay"));
+     ui->launchButton->setFocus();
+ 
++    ui->countdownLabel->setVisible(false);
++    ui->countdownLabel->setStyleSheet(
++      "QLabel { font-size: 24px; font-weight: bold;}");
++    ui->countdownLabel->setAlignment(Qt::AlignCenter);
++
++    // Connect countdown timer
++    connect(m_countdownTimer,
++            &QTimer::timeout,
++            this,
++            &CaptureLauncher::updateCountdown);
++
+     // Function to add or remove plural to seconds
+     connect(ui->delayTime,
+             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+@@ -100,15 +133,24 @@ CaptureLauncher::CaptureLauncher(QDialog* parent)
+ void CaptureLauncher::startCapture()
+ {
+     ui->launchButton->setEnabled(false);
+-    hide();
++
++    int delaySeconds = ui->delayTime->value();
++
++    if (delaySeconds > 0) {
++        m_remainingSeconds = delaySeconds;
++        ui->countdownLabel->setVisible(true);
++        ui->countdownLabel->setText(QString::number(m_remainingSeconds));
++        m_countdownTimer->start(1000);
++    } else {
++        hide();
++    }
+ 
+     auto const additionalDelayToHideUI = 600;
+     auto const secondsToMilliseconds = 1000;
+     auto mode = static_cast<CaptureRequest::CaptureMode>(
+       ui->captureType->currentData().toInt());
+-    CaptureRequest req(mode,
+-                       additionalDelayToHideUI +
+-                         ui->delayTime->value() * secondsToMilliseconds);
++    CaptureRequest req(
++      mode, additionalDelayToHideUI + delaySeconds * secondsToMilliseconds);
+ 
+     if (mode == CaptureRequest::CaptureMode::GRAPHICAL_MODE) {
+         req.setInitialSelection(QRect(ui->screenshotX->text().toInt(),
+@@ -117,6 +159,13 @@ void CaptureLauncher::startCapture()
+                                       ui->screenshotHeight->text().toInt()));
+     }
+ 
++#ifndef Q_OS_MACOS
++    int selectedMonitor = ui->monitorSelection->currentData().toInt();
++    req.setSelectedMonitor(selectedMonitor);
++#else
++    req.setSelectedMonitor(-1);
++#endif
++
+     connectCaptureSlots();
+     Flameshot::instance()->requestCapture(req);
+ }
+@@ -154,9 +203,8 @@ void CaptureLauncher::onCaptureTaken(QPixmap const& screenshot)
+ {
+     // MacOS specific, more details in the function disconnectCaptureSlots()
+     disconnectCaptureSlots();
+-
+-    ui->imagePreview->setScreenshot(screenshot);
+-    show();
++    m_countdownTimer->stop();
++    ui->countdownLabel->setVisible(false);
+ 
+     auto mode = static_cast<CaptureRequest::CaptureMode>(
+       ui->captureType->currentData().toInt());
+@@ -171,10 +219,25 @@ void CaptureLauncher::onCaptureFailed()
+ {
+     // MacOS specific, more details in the function disconnectCaptureSlots()
+     disconnectCaptureSlots();
++    m_countdownTimer->stop();
++    ui->countdownLabel->setVisible(false);
+     show();
+     ui->launchButton->setEnabled(true);
+ }
+ 
++void CaptureLauncher::updateCountdown()
++{
++    m_remainingSeconds--;
++
++    if (m_remainingSeconds > 0) {
++        ui->countdownLabel->setText(QString::number(m_remainingSeconds));
++    } else {
++        m_countdownTimer->stop();
++        ui->countdownLabel->setVisible(false);
++        hide();
++    }
++}
++
+ CaptureLauncher::~CaptureLauncher()
+ {
+     delete ui;
+diff --git a/src/widgets/capturelauncher.h b/src/widgets/capturelauncher.h
+index 0e0baf0355..ba09672f52 100644
+--- a/src/widgets/capturelauncher.h
++++ b/src/widgets/capturelauncher.h
+@@ -4,6 +4,7 @@
+ #pragma once
+ 
+ #include <QDialog>
++#include <QTimer>
+ 
+ QT_BEGIN_NAMESPACE
+ namespace Ui {
+@@ -21,8 +22,11 @@ class CaptureLauncher : public QDialog
+ 
+ private:
+     Ui::CaptureLauncher* ui;
++    QTimer* m_countdownTimer;
++    int m_remainingSeconds;
+     void connectCaptureSlots() const;
+     void disconnectCaptureSlots() const;
++    void updateCountdown();
+ 
+ private slots:
+     void startCapture();
+diff --git a/src/widgets/capturelauncher.ui b/src/widgets/capturelauncher.ui
+index ae26f27f06..1995d56806 100644
+--- a/src/widgets/capturelauncher.ui
++++ b/src/widgets/capturelauncher.ui
+@@ -6,44 +6,20 @@
+    <rect>
+     <x>0</x>
+     <y>0</y>
+-    <width>807</width>
+-    <height>213</height>
++    <width>452</width>
++    <height>250</height>
+    </rect>
+   </property>
+   <property name="windowTitle">
+    <string>Capture Launcher</string>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout_4">
+-   <item>
+-    <layout class="QHBoxLayout" name="horizontalLayout_3">
+-     <item>
+-      <widget class="ImageLabel" name="imagePreview">
+-       <property name="sizePolicy">
+-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+-         <horstretch>0</horstretch>
+-         <verstretch>0</verstretch>
+-        </sizepolicy>
+-       </property>
+-       <property name="minimumSize">
+-        <size>
+-         <width>420</width>
+-         <height>0</height>
+-        </size>
+-       </property>
+-       <property name="text">
+-        <string>TextLabel</string>
+-       </property>
+-      </widget>
+-     </item>
+-    </layout>
+-   </item>
+    <item>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QLabel" name="modeLabel">
+        <property name="font">
+         <font>
+-         <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+@@ -51,7 +27,7 @@
+         <string>Capture Mode</string>
+        </property>
+        <property name="alignment">
+-        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
++        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+        <property name="margin">
+         <number>-1</number>
+@@ -81,6 +57,16 @@
+          </property>
+         </widget>
+        </item>
++       <item row="2" column="0">
++        <widget class="QLabel" name="monitorLabel">
++         <property name="text">
++          <string>Monitor:</string>
++         </property>
++        </widget>
++       </item>
++       <item row="2" column="1">
++        <widget class="QComboBox" name="monitorSelection"/>
++       </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="sizeLabel">
+          <property name="sizePolicy">
+@@ -153,7 +139,14 @@
+        </item>
+       </layout>
+      </item>
+-     <item alignment="Qt::AlignHCenter">
++     <item alignment="Qt::AlignmentFlag::AlignHCenter">
++      <widget class="QLabel" name="countdownLabel">
++       <property name="text">
++        <string/>
++       </property>
++      </widget>
++     </item>
++     <item alignment="Qt::AlignmentFlag::AlignHCenter">
+       <widget class="QPushButton" name="launchButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+@@ -170,13 +163,6 @@
+    </item>
+   </layout>
+  </widget>
+- <customwidgets>
+-  <customwidget>
+-   <class>ImageLabel</class>
+-   <extends>QLabel</extends>
+-   <header>imagelabel.h</header>
+-  </customwidget>
+- </customwidgets>
+  <resources/>
+  <connections/>
+ </ui>
+diff --git a/src/widgets/trayicon.cpp b/src/widgets/trayicon.cpp
+index 7dd0c2249d..17eca3e0cd 100644
+--- a/src/widgets/trayicon.cpp
++++ b/src/widgets/trayicon.cpp
+@@ -1,12 +1,16 @@
+ #include "trayicon.h"
+ 
++#include "src/core/capturerequest.h"
+ #include "src/core/flameshot.h"
+ #include "src/core/flameshotdaemon.h"
++#include "src/core/qguiappcurrentscreen.h"
+ #include "src/utils/globalvalues.h"
+ 
+ #include "src/utils/confighandler.h"
+ #include <QApplication>
++#include <QGuiApplication>
+ #include <QMenu>
++#include <QScreen>
+ #include <QTimer>
+ #include <QUrl>
+ #include <QVersionNumber>
+@@ -17,8 +21,10 @@
+ 
+ TrayIcon::TrayIcon(QObject* parent)
+   : QSystemTrayIcon(parent)
++  , m_screenMenu(nullptr)
+ {
+     initMenu();
++    initScreenMenu();
+ 
+     setToolTip(QStringLiteral("Flameshot"));
+ #if defined(Q_OS_MACOS)
+@@ -125,8 +131,8 @@ void TrayIcon::initMenu()
+     });
+ #endif
+     });
+-    auto* launcherAction = new QAction(tr("&Open Launcher"), this);
+-    connect(launcherAction,
++    m_launcherAction = new QAction(tr("&Open Launcher"), this);
++    connect(m_launcherAction,
+             &QAction::triggered,
+             Flameshot::instance(),
+             &Flameshot::launcher);
+@@ -186,7 +192,7 @@ void TrayIcon::initMenu()
+             &Flameshot::openSavePath);
+ 
+     m_menu->addAction(m_captureAction);
+-    m_menu->addAction(launcherAction);
++    m_menu->addAction(m_launcherAction);
+     m_menu->addSeparator();
+ #ifdef ENABLE_IMGUR
+     m_menu->addAction(recentAction);
+@@ -234,6 +240,46 @@ void TrayIcon::updateCheckUpdatesMenuVisibility()
+ }
+ #endif
+ 
++void TrayIcon::initScreenMenu()
++{
++#ifndef Q_OS_MACOS
++    const QList<QScreen*> screens = QGuiApplication::screens();
++    if (screens.size() <= 1) {
++        return;
++    }
++
++    m_screenMenu = new QMenu(tr("Select Screen"));
++
++    QList<QAction*> actions = m_menu->actions();
++    int index = actions.indexOf(m_launcherAction);
++    if (index >= 0 && index + 1 < actions.size()) {
++        m_menu->insertMenu(actions[index + 1], m_screenMenu);
++    } else {
++        m_menu->addMenu(m_screenMenu);
++    }
++
++    QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
++    int currentIndex = screens.indexOf(currentScreen);
++
++    for (int i = 0; i < screens.size(); ++i) {
++        QScreen* screen = screens[i];
++        QRect geom = screen->geometry();
++        QString screenDescription = tr("Monitor %1: %2 (%3x%4)")
++                                      .arg(i + 1)
++                                      .arg(screen->name())
++                                      .arg(geom.width())
++                                      .arg(geom.height());
++
++        QAction* screenAction = m_screenMenu->addAction(screenDescription);
++        connect(screenAction, &QAction::triggered, this, [this, i]() {
++            // Wait and hide the menu
++            QTimer::singleShot(
++              100, this, [this, i]() { startGuiCaptureOnScreen(i); });
++        });
++    }
++#endif
++}
++
+ void TrayIcon::startGuiCapture()
+ {
+     auto* widget = Flameshot::instance()->gui();
+@@ -241,3 +287,10 @@ void TrayIcon::startGuiCapture()
+     FlameshotDaemon::instance()->showUpdateNotificationIfAvailable(widget);
+ #endif
+ }
++
++void TrayIcon::startGuiCaptureOnScreen(int screenIndex)
++{
++    CaptureRequest req(CaptureRequest::GRAPHICAL_MODE, 400);
++    req.setSelectedMonitor(screenIndex);
++    Flameshot::instance()->requestCapture(req);
++}
+diff --git a/src/widgets/trayicon.h b/src/widgets/trayicon.h
+index c1a5f107d8..4d4ce92c67 100644
+--- a/src/widgets/trayicon.h
++++ b/src/widgets/trayicon.h
+@@ -18,15 +18,19 @@ class TrayIcon : public QSystemTrayIcon
+ private:
+     void initTrayIcon();
+     void initMenu();
++    void initScreenMenu();
+     void updateCaptureActionShortcut();
+ #if !defined(DISABLE_UPDATE_CHECKER)
+     void updateCheckUpdatesMenuVisibility();
+ #endif
+ 
+     void startGuiCapture();
++    void startGuiCaptureOnScreen(int screenIndex);
+ 
+     QMenu* m_menu;
++    QMenu* m_screenMenu;
+     QAction* m_captureAction;
++    QAction* m_launcherAction;
+     QAction* m_infoAction;
+ #if !defined(DISABLE_UPDATE_CHECKER)
+     QAction* m_appUpdates;
+
+From 9ccf99225e615f73ba1b4d6ea5afeb1cd76be20c Mon Sep 17 00:00:00 2001
+From: "Brian J. Cohen" <brianjcohen@gmail.com>
+Date: Wed, 18 Feb 2026 17:00:44 -0500
+Subject: [PATCH 2/2] Sort monitor previews by screen position instead of Qt
+ index (#4522)
+
+The monitor selection dialog displayed monitors in Qt's default
+screen order (by connector name, e.g. DP-1 before DP-2), which
+can differ from the physical arrangement configured in the display
+settings. This sorts the preview widgets by their X geometry
+position so they match the user's actual left-to-right layout.
+---
+ src/utils/screengrabber.cpp | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/src/utils/screengrabber.cpp b/src/utils/screengrabber.cpp
+index 26a5bf9aa3..fde6d3e00e 100644
+--- a/src/utils/screengrabber.cpp
++++ b/src/utils/screengrabber.cpp
+@@ -19,6 +19,7 @@
+ #include <QScreen>
+ #include <QTimer>
+ #include <QWidget>
++#include <algorithm>
+ 
+ #ifdef FLAMESHOT_DEBUG_CAPTURE
+ #include <QDebug>
+@@ -315,7 +316,17 @@ QWidget* ScreenGrabber::createMonitorPreviews(const QPixmap& fullScreenshot)
+     containerLayout->setSpacing(20);
+     containerLayout->setContentsMargins(20, 20, 20, 20);
+ 
++    // Build list of screen indices sorted by X position (left to right)
++    QList<int> sortedIndices;
+     for (int i = 0; i < screens.size(); ++i) {
++        sortedIndices.append(i);
++    }
++    std::sort(
++      sortedIndices.begin(), sortedIndices.end(), [&screens](int a, int b) {
++          return screens[a]->geometry().x() < screens[b]->geometry().x();
++      });
++
++    for (int i : sortedIndices) {
+         QScreen* screen = screens[i];
+ 
+         QPixmap cropped = cropToMonitor(fullScreenshot, i);

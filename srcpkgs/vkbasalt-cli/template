@@ -1,0 +1,23 @@
+# Template file for 'vkbasalt-cli'
+pkgname=vkbasalt-cli
+version=3.1.1
+revision=1
+#archs="i686 x86_64"
+#build_wrksrc=
+build_style=python3-module
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="python3-setuptools"
+makedepends=""
+depends="python3"
+short_desc="Command-line utility for vkBasalt"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-or-later, LGPL-3.0-only"
+homepage="https://gitlab.com/TheEvilSkeleton/vkbasalt-cli"
+#changelog=""
+#distfiles="https://gitlab.com/TheEvilSkeleton/vkbasalt-cli/-/archive/v${version}/vkbasalt-cli-v${version}.tar.gz"
+distfiles="${PYPI_SITE}/p/${pkgname}/${pkgname}-${version}.tar.gz"
+checksum=a2368f8bb5856b0cbb15d8a5c6010225f087143242f92a311c6a95cfb877f438

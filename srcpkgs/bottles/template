@@ -1,0 +1,20 @@
+# Template file for 'bottles'
+pkgname=bottles
+version=63.0
+revision=1
+archs="x86_64"
+build_style=meson
+hostmakedepends="blueprint-compiler pkg-config cmake gettext
+gtk4-update-icon-cache desktop-file-utils appstream-glib"
+makedepends="glib-devel gtk4-devel libadwaita-devel AppStream-devel"
+depends="python3-chardet python3-icoextract python3-pathvalidate
+python3-patool vkbasalt-cli python3-yara cabextract dconf
+python3-requests python3-yaml python3-gobject python3-orjson p7zip
+ImageMagick gamemode"
+short_desc="Easy-to-use wineprefix manager"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-only"
+homepage="https://usebottles.com/"
+changelog="https://github.com/bottlesdevs/Bottles/releases"
+distfiles="https://github.com/bottlesdevs/Bottles/archive/refs/tags/${version}.tar.gz"
+checksum=f56493895ca02b73bc1c8035ad194f8426e0b214c0ea56b8b887273ef4218eb9
