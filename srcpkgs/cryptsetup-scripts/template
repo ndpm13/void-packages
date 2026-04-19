@@ -1,0 +1,39 @@
+# Template file for 'cryptsetup-scripts'
+pkgname=cryptsetup-scripts
+version=2.8.6
+revision=1
+#archs="i686 x86_64"
+#build_wrksrc=
+build_style=gnu-configure
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="pkg-config automake autoconf libtool
+ ruby-asciidoctor"
+makedepends="gettext-devel libuuid-devel device-mapper-devel
+ popt-devel json-c-devel libssh-devel openssl-devel libargon2-devel
+ libpwquality-devel"
+depends=""
+short_desc="Supporting infrastructure for cryptsetup from Debian"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-2.0-or-later"
+homepage="https://cryptsetup-team.pages.debian.net/cryptsetup/"
+changelog="https://salsa.debian.org/cryptsetup-team/cryptsetup"
+distfiles="https://salsa.debian.org/cryptsetup-team/cryptsetup/-/archive/upstream/${version}/cryptsetup-upstream-${version}.tar.gz"
+checksum=10ad964b78ba526ddd0b26cda30e17574a499f4cd5af39c168e4751173a0c8e0
+
+pre_configure() {
+	./autogen.sh
+}
+
+cryptsetup-scripts-devel_package() {
+	depends="${sourcepkg}>=${version}_${revision}"
+	short_desc+=" - development files"
+	pkg_install() {
+		vmove usr/include
+		vmove usr/lib/pkgconfig
+		vmove "usr/lib/*.so"
+	}
+}
