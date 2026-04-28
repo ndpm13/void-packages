@@ -57,6 +57,7 @@ post_extract() {
 	cp -a emacs-* x11
 	cp -a emacs-* gtk3
 	cp -a emacs-* pgtk
+	cp -a emacs-* lucid
 }
 
 do_configure() {
@@ -74,6 +75,9 @@ do_configure() {
 
 	cd $wrksrc/pgtk
 	./configure --with-pgtk ${configure_args}
+
+	cd $wrksrc/lucid
+	./configure --with-x-toolkit=lucid ${configure_args}
 }
 
 do_build() {
@@ -81,6 +85,7 @@ do_build() {
 	make ${makejobs} -C x11
 	make ${makejobs} -C gtk3
 	make ${makejobs} -C pgtk
+	make ${makejobs} -C lucid
 }
 
 do_install() {
@@ -137,6 +142,19 @@ emacs-pgtk_package() {
 	short_desc+=" - Pure GTK version"
 	pkg_install() {
 		make DESTDIR=${PKGDESTDIR} -C ${wrksrc}/pgtk install
+		rm -f ${PKGDESTDIR}/usr/bin/ctags
+		rm -rf ${PKGDESTDIR}/usr/share/{emacs,man,info}
+		rm -rf ${PKGDESTDIR}/usr/lib/systemd
+	}
+}
+
+emacs-lucid_package() {
+	depends="emacs-common-${version}_${revision} desktop-file-utils hicolor-icon-theme"
+	provides="emacs-${version}_${revision}"
+	replaces="emacs>=0"
+	short_desc+=" - Lucid toolkit version"
+	pkg_install() {
+		make DESTDIR=${PKGDESTDIR} -C ${wrksrc}/lucid install
 		rm -f ${PKGDESTDIR}/usr/bin/ctags
 		rm -rf ${PKGDESTDIR}/usr/share/{emacs,man,info}
 		rm -rf ${PKGDESTDIR}/usr/lib/systemd
