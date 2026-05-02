@@ -1,0 +1,36 @@
+# Template file for 'nvidia-cg-toolkit'
+pkgname=nvidia-cg-toolkit
+version=3.1
+revision=1
+_date="April2012"
+archs="x86_64"
+short_desc="NVIDIA Cg libraries"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="custom:NVIDIA Proprietary"
+homepage="https://developer.nvidia.com/cg-toolkit"
+distfiles="https://developer.download.nvidia.com/cg/Cg_${version}/Cg-${version}_${_date}_x86_64.tgz"
+checksum=e8ff01e6cc38d1b3fd56a083f5860737dbd2f319a39037528fb1a74a89ae9878
+nostrip=yes
+
+do_install() {
+	vbin bin/cgc
+
+	vmkdir usr/share/Cg
+	rm -rf local/Cg/examples
+	vcopy local/Cg/* usr/share/Cg
+	find ${DESTDIR}/usr/share/ -type d -exec chmod -R 755 '{}' ';'
+	find ${DESTDIR}/usr/share/ -type f -exec chmod -R 644 '{}' ';'
+
+	vlicense local/Cg/docs/license.txt
+
+}
+
+nvidia-cg-toolkit-devel_package() {
+	depends="nvidia-cg-toolkit>=${version}_${revision}"
+	short_desc+=" - development files"
+	pkg_install() {
+		vmkdir usr/include/Cg
+		vcopy include/Cg/* usr/include/Cg
+		vcopy lib64/* usr/lib
+	}
+}
