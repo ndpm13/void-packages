@@ -1,0 +1,297 @@
+From 3a788468e9e9e2f16bca739b6af0636fdccb9206 Mon Sep 17 00:00:00 2001
+From: Naz <ndpm13@ch-naseem.com>
+Date: Sun, 17 May 2026 15:22:37 +0100
+Subject: [PATCH] fix: add schemars feature alias for schema feature
+
+---
+ crates/biome_analyze/Cargo.toml                | 1 +
+ crates/biome_configuration/Cargo.toml          | 1 +
+ crates/biome_console/Cargo.toml                | 1 +
+ crates/biome_diagnostics/Cargo.toml            | 1 +
+ crates/biome_diagnostics_categories/Cargo.toml | 1 +
+ crates/biome_formatter/Cargo.toml              | 1 +
+ crates/biome_fs/Cargo.toml                     | 1 +
+ crates/biome_glob/Cargo.toml                   | 1 +
+ crates/biome_grit_patterns/Cargo.toml          | 1 +
+ crates/biome_html_formatter/Cargo.toml         | 1 +
+ crates/biome_js_formatter/Cargo.toml           | 1 +
+ crates/biome_js_parser/Cargo.toml              | 1 +
+ crates/biome_json_formatter/Cargo.toml         | 1 +
+ crates/biome_markdown_formatter/Cargo.toml     | 1 +
+ crates/biome_module_graph/Cargo.toml           | 1 +
+ crates/biome_plugin_loader/Cargo.toml          | 1 +
+ crates/biome_rowan/Cargo.toml                  | 1 +
+ crates/biome_rule_options/Cargo.toml           | 1 +
+ crates/biome_service/Cargo.toml                | 1 +
+ crates/biome_text_edit/Cargo.toml              | 1 +
+ crates/biome_text_size/Cargo.toml              | 1 +
+ crates/biome_yaml_formatter/Cargo.toml         | 1 +
+ 22 files changed, 22 insertions(+)
+
+diff --git a/crates/biome_analyze/Cargo.toml b/crates/biome_analyze/Cargo.toml
+index 1a728368..4ea44282 100644
+--- a/crates/biome_analyze/Cargo.toml
++++ b/crates/biome_analyze/Cargo.toml
+@@ -34,6 +34,7 @@ insta = { workspace = true }
+ 
+ [features]
+ schema = ["biome_console/schema", "dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:biome_deserialize", "dep:biome_deserialize_macros", "dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_configuration/Cargo.toml b/crates/biome_configuration/Cargo.toml
+index 00e255b7..ba4af85f 100644
+--- a/crates/biome_configuration/Cargo.toml
++++ b/crates/biome_configuration/Cargo.toml
+@@ -75,6 +75,7 @@ schema     = [
+   "biome_rule_options/schema",
+   "dep:schemars",
+ ]
++schemars = ["schema"]
+ test-utils = []
+ 
+ [lints]
+diff --git a/crates/biome_console/Cargo.toml b/crates/biome_console/Cargo.toml
+index 11f81c4b..d819e78b 100644
+--- a/crates/biome_console/Cargo.toml
++++ b/crates/biome_console/Cargo.toml
+@@ -27,6 +27,7 @@ trybuild = "=1.0.116"
+ 
+ [features]
+ schema = ["biome_text_size/schema", "dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_diagnostics/Cargo.toml b/crates/biome_diagnostics/Cargo.toml
+index 1dedb82e..ac6dfc07 100644
+--- a/crates/biome_diagnostics/Cargo.toml
++++ b/crates/biome_diagnostics/Cargo.toml
+@@ -54,6 +54,7 @@ trybuild   = "=1.0.116"
+ bpaf   = ["dep:bpaf"]
+ camino = ["dep:camino"]
+ schema = ["biome_console/schema", "biome_diagnostics_categories/schema", "biome_text_edit/schema", "dep:schemars"]
++schemars = ["schema"]
+ std    = []
+ 
+ [lints]
+diff --git a/crates/biome_diagnostics_categories/Cargo.toml b/crates/biome_diagnostics_categories/Cargo.toml
+index e9b5d8fa..1a6e23dc 100644
+--- a/crates/biome_diagnostics_categories/Cargo.toml
++++ b/crates/biome_diagnostics_categories/Cargo.toml
+@@ -21,6 +21,7 @@ quote = "1.0.14"
+ 
+ [features]
+ schema = ["dep:schemars", "dep:serde_json", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_formatter/Cargo.toml b/crates/biome_formatter/Cargo.toml
+index 32299214..44d1cb90 100644
+--- a/crates/biome_formatter/Cargo.toml
++++ b/crates/biome_formatter/Cargo.toml
+@@ -42,6 +42,7 @@ insta           = { workspace = true }
+ [features]
+ countme = ["dep:countme"]
+ schema  = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde   = ["biome_deserialize/serde", "biome_rowan/serde", "dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_fs/Cargo.toml b/crates/biome_fs/Cargo.toml
+index 334a5025..e11030de 100644
+--- a/crates/biome_fs/Cargo.toml
++++ b/crates/biome_fs/Cargo.toml
+@@ -34,6 +34,7 @@ serde_json = { workspace = true }
+ 
+ [features]
+ schema = ["biome_diagnostics/schema", "dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["camino/serde1"]
+ 
+ [lints]
+diff --git a/crates/biome_glob/Cargo.toml b/crates/biome_glob/Cargo.toml
+index fcad36ce..b4e9cf93 100644
+--- a/crates/biome_glob/Cargo.toml
++++ b/crates/biome_glob/Cargo.toml
+@@ -22,6 +22,7 @@ serde                    = { workspace = true, optional = true }
+ [features]
+ biome_deserialize = ["dep:biome_deserialize", "dep:biome_deserialize_macros", "dep:biome_text_size"]
+ schema            = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde             = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_grit_patterns/Cargo.toml b/crates/biome_grit_patterns/Cargo.toml
+index 90b71705..66f0091b 100644
+--- a/crates/biome_grit_patterns/Cargo.toml
++++ b/crates/biome_grit_patterns/Cargo.toml
+@@ -55,6 +55,7 @@ mimalloc = { workspace = true }
+ 
+ [features]
+ schema = ["biome_js_parser/schema", "dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde", "dep:serde_json"]
+ 
+ [lints]
+diff --git a/crates/biome_html_formatter/Cargo.toml b/crates/biome_html_formatter/Cargo.toml
+index c2ba743c..ee1f1914 100644
+--- a/crates/biome_html_formatter/Cargo.toml
++++ b/crates/biome_html_formatter/Cargo.toml
+@@ -50,6 +50,7 @@ mimalloc = { workspace = true }
+ 
+ [features]
+ schema = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["biome_rowan/serde", "dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_js_formatter/Cargo.toml b/crates/biome_js_formatter/Cargo.toml
+index 1167bbbe..05de43d8 100644
+--- a/crates/biome_js_formatter/Cargo.toml
++++ b/crates/biome_js_formatter/Cargo.toml
+@@ -65,6 +65,7 @@ mimalloc = { workspace = true }
+ 
+ [features]
+ schema = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_js_parser/Cargo.toml b/crates/biome_js_parser/Cargo.toml
+index c1a777f2..15a96238 100644
+--- a/crates/biome_js_parser/Cargo.toml
++++ b/crates/biome_js_parser/Cargo.toml
+@@ -58,6 +58,7 @@ mimalloc = { workspace = true }
+ 
+ [features]
+ schema = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["biome_js_syntax/schema", "dep:serde"]
+ tests  = []
+ 
+diff --git a/crates/biome_json_formatter/Cargo.toml b/crates/biome_json_formatter/Cargo.toml
+index c76b85a2..7414e7c6 100644
+--- a/crates/biome_json_formatter/Cargo.toml
++++ b/crates/biome_json_formatter/Cargo.toml
+@@ -56,6 +56,7 @@ mimalloc = { workspace = true }
+ 
+ [features]
+ schema = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_markdown_formatter/Cargo.toml b/crates/biome_markdown_formatter/Cargo.toml
+index 09dd89aa..3e564e02 100644
+--- a/crates/biome_markdown_formatter/Cargo.toml
++++ b/crates/biome_markdown_formatter/Cargo.toml
+@@ -31,6 +31,7 @@ tests_macros          = { path = "../tests_macros" }
+ 
+ [features]
+ schema = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_module_graph/Cargo.toml b/crates/biome_module_graph/Cargo.toml
+index ea4d5b41..e03a6d10 100644
+--- a/crates/biome_module_graph/Cargo.toml
++++ b/crates/biome_module_graph/Cargo.toml
+@@ -60,6 +60,7 @@ mimalloc = { workspace = true }
+ 
+ [features]
+ schema = ["dep:schemars"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_plugin_loader/Cargo.toml b/crates/biome_plugin_loader/Cargo.toml
+index e5ef7dc4..b8580ff7 100644
+--- a/crates/biome_plugin_loader/Cargo.toml
++++ b/crates/biome_plugin_loader/Cargo.toml
+@@ -51,6 +51,7 @@ windows = { workspace = true, features = ["Win32_System_Threading"], optional =
+ default   = []
+ js_plugin = ["dep:biome_js_runtime", "dep:boa_engine", "dep:libc", "dep:windows"]
+ schema    = ["dep:schemars"]
++schemars = ["schema"]
+ 
+ [lints]
+ workspace = true
+diff --git a/crates/biome_rowan/Cargo.toml b/crates/biome_rowan/Cargo.toml
+index 3e825f0f..47427970 100644
+--- a/crates/biome_rowan/Cargo.toml
++++ b/crates/biome_rowan/Cargo.toml
+@@ -33,6 +33,7 @@ serde_json        = { workspace = true }
+ [features]
+ countme = ["dep:countme"]
+ schema  = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde   = ["biome_text_size/serde", "biome_text_size/serde", "dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_rule_options/Cargo.toml b/crates/biome_rule_options/Cargo.toml
+index 4485d7fb..04dafb17 100644
+--- a/crates/biome_rule_options/Cargo.toml
++++ b/crates/biome_rule_options/Cargo.toml
+@@ -32,6 +32,7 @@ smallvec                 = { workspace = true }
+ 
+ [features]
+ schema = ["dep:schemars", "dep:serde_json"]
++schemars = ["schema"]
+ 
+ [lints]
+ workspace = true
+diff --git a/crates/biome_service/Cargo.toml b/crates/biome_service/Cargo.toml
+index 9b45101b..9d0b5968 100644
+--- a/crates/biome_service/Cargo.toml
++++ b/crates/biome_service/Cargo.toml
+@@ -113,6 +113,7 @@ schema    = [
+   "biome_yaml_formatter/schema",
+   "dep:schemars",
+ ]
++schemars = ["schema"]
+ 
+ [lints]
+ workspace = true
+diff --git a/crates/biome_text_edit/Cargo.toml b/crates/biome_text_edit/Cargo.toml
+index 38a987d0..68133537 100644
+--- a/crates/biome_text_edit/Cargo.toml
++++ b/crates/biome_text_edit/Cargo.toml
+@@ -19,6 +19,7 @@ similar         = { workspace = true, features = ["unicode"] }
+ 
+ [features]
+ schema = ["biome_text_size/schema", "dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["biome_text_size/serde", "dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_text_size/Cargo.toml b/crates/biome_text_size/Cargo.toml
+index c7625783..5d25ec0a 100644
+--- a/crates/biome_text_size/Cargo.toml
++++ b/crates/biome_text_size/Cargo.toml
+@@ -26,6 +26,7 @@ static_assertions = { workspace = true }
+ 
+ [features]
+ schema = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+diff --git a/crates/biome_yaml_formatter/Cargo.toml b/crates/biome_yaml_formatter/Cargo.toml
+index 28553571..fe054e9b 100644
+--- a/crates/biome_yaml_formatter/Cargo.toml
++++ b/crates/biome_yaml_formatter/Cargo.toml
+@@ -40,6 +40,7 @@ tests_macros         = { path = "../tests_macros" }
+ 
+ [features]
+ schema = ["dep:schemars", "serde"]
++schemars = ["schema"]
+ serde  = ["dep:serde"]
+ 
+ [lints]
+-- 
+2.54.0
+

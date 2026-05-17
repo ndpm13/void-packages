@@ -1,0 +1,85 @@
+From 59c664bda51c5c9c28737a4a3534456448d96d79 Mon Sep 17 00:00:00 2001
+From: Naz <ndpm13@ch-naseem.com>
+Date: Sun, 17 May 2026 13:41:10 +0100
+Subject: [PATCH] Fix paths
+
+---
+ src/Previewer/previewer.vala         | 4 ++--
+ src/cli/bin.js                       | 2 +-
+ src/langs/python/python-previewer.py | 4 ++--
+ src/meson.build                      | 2 --
+ 4 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/Previewer/previewer.vala b/src/Previewer/previewer.vala
+index b33dff6..79efa98 100644
+--- a/src/Previewer/previewer.vala
++++ b/src/Previewer/previewer.vala
+@@ -11,7 +11,7 @@ namespace Workbench {
+             var icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default());
+             string[] resource_path = {"/org/gtk/libgtk/icons/", "/org/gnome/Adwaita/icons/", "/re/sonny/Workbench/icons/"};
+             icon_theme.resource_path = resource_path;
+-            string [] search_path = {"/usr/share/icons", "/app/share/icons"};
++            string [] search_path = {"/usr/share/icons", "/usr/share/icons"};
+             icon_theme.search_path = search_path;
+         }
+ 
+@@ -235,7 +235,7 @@ namespace Workbench {
+         }
+ 
+         var app_id = GLib.Environment.get_variable("FLATPAK_ID");
+-        var resource = Resource.load (@"/app/share/$app_id/re.sonny.Workbench.libworkbench.gresource");
++        var resource = Resource.load (@"/usr/share/$app_id/re.sonny.Workbench.libworkbench.gresource");
+         GLib.resources_register (resource);
+ 
+ 
+diff --git a/src/cli/bin.js b/src/cli/bin.js
+index b86c582..b63aab4 100755
+--- a/src/cli/bin.js
++++ b/src/cli/bin.js
+@@ -20,7 +20,7 @@ setConsoleLogDomain(app_id);
+ GLib.set_application_name("workbench-cli");
+ 
+ const resource = Gio.Resource.load(
+-  `/app/share/${app_id}/${app_id}.src.gresource`,
++  `/usr/share/${app_id}/${app_id}.src.gresource`,
+ );
+ resource._register();
+ 
+diff --git a/src/langs/python/python-previewer.py b/src/langs/python/python-previewer.py
+index d1eac2a..0f79690 100644
+--- a/src/langs/python/python-previewer.py
++++ b/src/langs/python/python-previewer.py
+@@ -50,7 +50,7 @@ GObject.type_ensure(WebKit.WebView)
+ GObject.type_ensure(Shumate.SimpleMap)
+ 
+ resource = Gio.Resource.load(
+-    f'/app/share/{os.environ["FLATPAK_ID"]}/re.sonny.Workbench.libworkbench.gresource'
++    f'/usr/share/{os.environ["FLATPAK_ID"]}/re.sonny.Workbench.libworkbench.gresource'
+ )
+ Gio.resources_register(resource)
+ 
+@@ -95,7 +95,7 @@ class Previewer:
+                 "/re/sonny/Workbench/icons/",
+             ]
+         )
+-        icon_theme.set_search_path(["/usr/share/icons", "/app/share/icons"])
++        icon_theme.set_search_path(["/usr/share/icons", "/usr/share/icons"])
+ 
+     @DBusTemplate.Method()
+     def update_ui(self, content: str, target_id: str, original_id: str = ""):
+diff --git a/src/meson.build b/src/meson.build
+index 4d4d64f..74f5213 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -9,8 +9,6 @@ bin_conf.set('pkgdatadir', pkgdatadir)
+ bin_conf.set('sourcedir', meson.project_source_root())
+ bin_conf.set('command', 'SHELL=/bin/sh script --flush --quiet --return $XDG_RUNTIME_DIR/$FLATPAK_ID/typescript --command "' + app_id + ' $@"')
+ 
+-meson.add_install_script('../build-aux/library.js', pkgdatadir)
+-
+ subdir('langs/javascript')
+ subdir('langs/rust/template')
+ subdir('langs/typescript')
+-- 
+2.54.0
+

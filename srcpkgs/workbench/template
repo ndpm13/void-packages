@@ -1,0 +1,62 @@
+# Template file for 'workbench'
+pkgname=workbench
+version=49.0
+revision=1
+_trollver=8b0275948eedec9ed0378f9bdda1aa4aac3062ba
+_demosver=5efa50c4692da433fdd9ce696b329ebcea03fb1b
+_gitypesver=396fe147142e28a921f0745eff1a562c7a551843
+archs="x86_64"
+build_style=meson
+build_helper=rust
+hostmakedepends="cargo vala desktop-file-utils AppStream gjs
+ pkg-config blueprint-compiler gobject-introspection
+ gtk4-update-icon-cache nodejs"
+makedepends="glib-devel gtk4-devel gtksourceview5-devel
+ libadwaita-devel libshumate-devel libwebkitgtk60-devel
+ vte3-gtk4-devel"
+depends="biome vala-language-server python3-lsp-server"
+short_desc="Code playground for GNOME"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-only"
+homepage="https://apps.gnome.org/Workbench"
+distfiles="https://github.com/workbenchdev/Workbench/archive/refs/tags/v${version}.tar.gz"
+checksum="060efd18c22ee7d0b322f0460165c3b7ca863b606569556cc2e95133d237192e"
+python_version=3
+
+distfiles+="
+ https://github.com/sonnyp/troll/archive/${_trollver}.tar.gz
+ https://github.com/workbenchdev/demos/archive/${_demosver}.tar.gz
+ https://gitlab.gnome.org/BrainBlasted/gi-typescript-definitions/-/archive/${_gitypesver}/gi-typescript-definitions-${_gitypesver}.tar.gz
+"
+checksum+="
+ 5ff7bc5e6b9d4256a4158097a014a6699efd2c197472988ae1138b91d8fa8f9f
+ a0a9f47c6a4d6c04f34d6fbd223c2a0cd3496c05f9f0e327360a3a58de929057
+ 776b01bf332fb90e852b5e3a1414f7c6f7869ba66c4bd217869fd97f4fc2074e
+"
+skip_extraction="
+ ${_trollver}.tar.gz
+ ${_demosver}.tar.gz
+ gi-typescript-definitions-${_gitypesver}.tar.gz
+"
+
+post_extract() {
+	vsrcextract -C troll "${_trollver}.tar.gz"
+	vsrcextract -C demos "${_demosver}.tar.gz"
+	vsrcextract -C gi-types "gi-typescript-definitions-${_gitypesver}.tar.gz"
+}
+
+post_install() {
+	MESON_SOURCE_ROOT="$(pwd)" build-aux/library.js \
+		"${DESTDIR}/usr/share/re.sonny.Workbench"
+}
+
+workbench-devel_package() {
+	short_desc+=" - development files"
+	depends="${sourcepkg}>=${version}_${revision}"
+	pkg_install() {
+		vmove usr/include
+		vmove usr/share/vala
+		vmove usr/share/gir-1.0
+		vmove usr/lib/*.so
+	}
+}
