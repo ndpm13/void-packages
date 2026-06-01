@@ -1,0 +1,38 @@
+# Template file for 'helium-browser'
+pkgname=helium-browser
+version=0.12.5.1
+revision=1
+_heliumver="${version%.*}"
+archs="x86_64"
+#build_wrksrc=
+#build_style=gnu-configure
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="python3"
+#makedepends=""
+#depends="vulkan-loader"
+short_desc="Private, fast, and honest web browser"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-only"
+homepage="https://helium.computer/"
+changelog="https://github.com/imputnet/helium/archive/releases"
+distfiles="https://github.com/imputnet/helium-linux/archive/refs/tags/${version}.tar.gz
+ https://github.com/imputnet/helium/archive/refs/tags/${_heliumver}.tar.gz"
+checksum="3714c600321f4e6964816fb8702004285041925de78f0adcc9e2c1c8684f04ed
+ f26695155a890e6509df19fa385f4d1035e463485bf44c5460179f147e2da62e"
+skip_extraction="${_heliumver}.tar.gz"
+
+post_extract() {
+	vsrcextract -C helium-chromium "${_heliumver}.tar.gz"
+}
+
+do_build() {
+	./scripts/build.sh
+}
+
+do_install() {
+	ls -lah
+}

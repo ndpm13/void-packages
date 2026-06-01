@@ -1,0 +1,23 @@
+diff --git a/helium-chromium/utils/_extraction.py b/helium-chromium/utils/_extraction.py
+index 5b6d4f71..84390e96 100644
+--- a/helium-chromium/utils/_extraction.py
++++ b/helium-chromium/utils/_extraction.py
+@@ -120,7 +120,7 @@ def _extract_tar_with_7z(binary, archive_path, output_dir, relative_to):
+ def _extract_tar_with_tar(binary, archive_path, output_dir, relative_to):
+     get_logger().debug('Using BSD or GNU tar extractor')
+     output_dir.mkdir(exist_ok=True)
+-    cmd = (binary, '-xf', str(archive_path), '-C', str(output_dir))
++    cmd = (binary, '-xf', str(archive_path), '-C', str(output_dir), '--hard-dereference')
+     get_logger().debug('tar command line: %s', ' '.join(cmd))
+     result = subprocess.run(cmd, check=False)
+     if result.returncode != 0:
+@@ -184,6 +184,9 @@ def _extract_tar_with_python(archive_path, output_dir, relative_to):
+                     # aren't needed. The only situation where this happens is on Windows.
+                     continue
+                 if tarinfo.islnk():
++                    if not tarinfo.linkname:
++                        continue
++
+                     # Derived from TarFile.extract()
+                     new_target = output_dir / PurePosixPath(
+                         tarinfo.linkname).relative_to(relative_to)
