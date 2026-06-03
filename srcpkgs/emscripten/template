@@ -1,0 +1,115 @@
+# Template file for 'emscripten'
+pkgname=emscripten
+version=5.0.7
+revision=1
+_posixtestver=85555325079ea362fa680bd2209c843cfe47e670
+_googletestver=1.15.2
+_wasitestver=ac9371207fc61972a21d7d086074ca690a99d14d
+_llvmver=7b58716d96c3ae4c0c4e6f72e29b16137bb6224b
+_binaryenver=130
+archs="x86_64"
+#build_wrksrc=
+#build_style=
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="python3 nodejs cmake ninja"
+#makedepends=""
+#depends=""
+short_desc="Compile C and C++ into highly-optimizable JavaScript for the web"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="NCSA"
+homepage="http://emscripten.org/"
+changelog="https://github.com/emscripten-core/emscripten/raw/refs/heads/main/ChangeLog.md"
+distfiles="
+ https://github.com/emscripten-core/emscripten/archive/refs/tags/${version}.tar.gz
+ https://github.com/emscripten-core/posixtestsuite/archive/${_posixtestver}.tar.gz
+ https://github.com/google/googletest/archive/refs/tags/v${_googletestver}.tar.gz
+ https://github.com/khronosproject/wasi-test-suite/archive/${_wasitestver}.tar.gz
+ https://github.com/llvm/llvm-project/archive/${_llvmver}.tar.gz
+ https://github.com/WebAssembly/binaryen/archive/refs/tags/version_${_binaryenver}.tar.gz"
+checksum="
+ 66a6537a8dede6b0e5945839f0d0641e73e64f728729d26900e9d918040f0210
+ df74046dc164ae8aa464dfa5fef33346007c1ceb7554f42c8e4aa74c4f42a3b7
+ 7b42b4d6ed48810c5362c265a17faebe90dc2373c885e5216439d37927f02926
+ ff828004a19da3e8034fff789624a9881d50a9ef004ae5c0baddb3270a4e28a7
+ 0791c69319e1861e86ccb438d10b1b1816987f2d99b13d7e95ef08f88f0cedf8
+ 20d727e7f3011cfe604b8ebdc873edbb4831c6b148209cb15bc2bedcded036ee"
+skip_extraction="
+ ${_posixtestver}.tar.gz
+ v${_googletestver}.tar.gz
+ ${_wasitestver}.tar.gz
+ ${_llvmver}.tar.gz
+ version_${_binaryenver}.tar.gz"
+nostrip_files="/usr/lib/emscripten/node_modules/google-closure-compiler-linux/compiler"
+
+post_extract() {
+	vsrcextract -C test/third_party/posixtestsuite "${_posixtestver}.tar.gz"
+	vsrcextract -C test/third_party/googletest "v${_googletestver}.tar.gz"
+	vsrcextract -C test/third_party/wasi-test-suite "${_wasitestver}.tar.gz"
+	vsrcextract -C llvm "${_llvmver}.tar.gz"
+	vsrcextract -C binaryen "version_${_binaryenver}.tar.gz"
+}
+
+pre_install() {
+	cd binaryen
+	export CXXFLAGS+=" -Wno-error=maybe-uninitialized"
+	cmake \
+		-Bbuild \
+		-GNinja \
+		-DBUILD_TESTS=OFF \
+		-DCMAKE_INSTALL_PREFIX=${DESTDIR}/usr
+	ninja -C build && ninja -C build install
+
+	vmkdir opt/emscripten/llvm
+	cd ../llvm/llvm
+	cmake \
+		-Bbuild \
+		-GNinja \
+		-DLLVM_ENABLE_LIBXML2=OFF \
+		-DLLVM_INCLUDE_EXAMPLES=OFF \
+		-DCOMPILER_RT_BUILD_XRAY=OFF \
+		-DCOMPILER_RT_INCLUDE_TESTS=OFF \
+		-DCOMPILER_RT_ENABLE_IOS=OFF \
+		-DCMAKE_INSTALL_PREFIX=${DESTDIR}/opt/emscripten/llvm \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_SKIP_RPATH=ON \
+		-DLLVM_BUILD_RUNTIME=OFF \
+		-DLLVM_TOOL_LTO_BUILD=ON \
+		-DLLVM_INSTALL_TOOLCHAIN_ONLY=ON \
+		-DLLVM_INCLUDE_EXAMPLES=OFF \
+		-DLLVM_INCLUDE_TESTS=OFF \
+		-DLLVM_TARGETS_TO_BUILD="host;WebAssembly" \
+		-DLLVM_ENABLE_PROJECTS="lld;clang" \
+		-DCLANG_INCLUDE_TESTS=OFF
+	ninja -C build && ninja -C build install
+	local _stufftoremove="clang-check clang-cl clang-cpp
+		clang-extdef-mapping clang-format clang-offload-bundler
+		clang-refactor lld-link ld.lld llvm-lib"
+	for bin in ${_stufftoremove}; do
+		rm ${DESTDIR}/opt/emscripten/llvm/bin/${bin}
+	done
+	rm ${DESTDIR}/opt/emscripten/llvm/lib/libclang.so
+	rm -r ${DESTDIR}/opt/emscripten/llvm/share
+	local _stufftocopy="llvm-as llvm-dis FileCheck llc llvm-link
+		llvm-mc llvm-readobj opt llvm-dwarfdump"
+	for bin in ${_stufftocopy}; do
+		vinstall ${DESTDIR}/opt/emscripten/llvm/llvm/build/bin/${bin} \
+			755 ${DESTDIR}/opt/emscripten/llvm/bin/${bin}
+	done
+
+	python tools/maint/create_entry_points.py
+}
+
+do_install() {
+	vmkdir usr/lib/${pkgname}
+	DESTDIR=${DESTDIR}/usr/lib/${pkgname} make install
+
+	vinstall ${FILESDIR}/emscripten-config 644 ${DESTDIR}/usr/lib/emscripten/.emscripten
+
+	ls -lah ${DESTDIR}/usr/lib/${pkgname}
+
+	vlicense LICENSE
+}
