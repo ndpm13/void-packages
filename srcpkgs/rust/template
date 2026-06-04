@@ -12,7 +12,7 @@ version=1.96.0
 revision=1
 _change_id=154508
 _llvmver=22
-hostmakedepends="curl pkg-config python3 tar cargo-bootstrap $(vopt_if wasi "clang${_llvmver} llvm${_llvmver} wasi-libc")"
+hostmakedepends="curl pkg-config python3 tar cargo-bootstrap $(vopt_if wasm "clang${_llvmver} llvm${_llvmver} wasi-libc")"
 makedepends="libffi-devel ncurses-devel libxml2-devel libzstd-devel zlib-devel llvm${_llvmver}-devel"
 depends="rust-std gcc"
 short_desc="Safe, concurrent, practical systems language"
@@ -28,11 +28,11 @@ python_version=3 # needed for python files in rust-src
 build_helper="qemu"
 
 build_options="docs bindist wasm"
-build_options_default="docs"
+build_options_default="docs wasm"
 desc_option_bindist="Generate tarballs for bootstrap"
 desc_option_docs="build standard library documentation"
 desc_option_wasm="build wasm targets"
-vopt_conflict wasm docs # building with docs for wasm targets is currently broken
+# vopt_conflict wasm docs # building with docs for wasm targets is currently broken
 
 subpackages="$(vopt_if docs rust-doc) rust-std $(vopt_if wasm rust-wasm) rust-src"
 

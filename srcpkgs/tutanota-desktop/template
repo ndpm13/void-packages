@@ -1,0 +1,66 @@
+# Template file for 'tutanota-desktop'
+pkgname=tutanota-desktop
+version=348.260529.2
+revision=1
+_nodever=22.16.0
+_llvmver=22
+_argonver=f57e61e19229e23c4445b85494dbf7c07de721cb
+_liboqsver=0.12.0
+_fts5ver=200f65e9a5111c8f7b19fd884f4c942b61a1579b
+archs="x86_64"
+#build_wrksrc=
+#build_style=gnu-configure
+build_helper=rust
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="fnm git cargo rust-wasm pkg-config lld emscripten"
+makedepends="libzstd-devel" # libsecret-devel"
+#depends=""
+short_desc="Tuta official desktop client"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-only"
+homepage="https://tuta.com/"
+changelog="https://github.com/tutao/tutanota/releases/"
+distfiles="
+ https://github.com/tutao/tutanota/archive/refs/tags/tutanota-desktop-release-${version}.tar.gz
+ https://github.com/P-H-C/phc-winner-argon2/archive/${_argonver}.tar.gz
+ https://github.com/open-quantum-safe/liboqs/archive/refs/tags/${_liboqsver}.tar.gz
+ https://github.com/tutao/Signal-FTS5-Extension/archive/${_fts5ver}.tar.gz"
+checksum="8c0edc6fc911f3001eb4f316be5d386b74bf96137f9741b8777d2b38d252e362
+ ac8c1d819a3b5da231b6549d79e02d0d41dc29469bd0dae94e775c62cb369e0a
+ df999915204eb1eba311d89e83d1edd3a514d5a07374745d6a9e5b2dd0d59c08
+ ab0c727d03963fa38e7a0196bc4827e78f2677bb8fce68d78ff0be511f775a45"
+skip_extraction="
+ ${_argonver}.tar.gz
+ ${_liboqsver}.tar.gz
+ ${_fts5ver}.tar.gz"
+
+post_extract() {
+	vsrcextract -C libs/webassembly/phc-winner-argon2 "${_argonver}.tar.gz"
+	vsrcextract -C libs/webassembly/liboqs "${_liboqsver}.tar.gz"
+	vsrcextract -C libs/Signal-FTS5-Extension "${_fts5ver}.tar.gz"
+}
+
+pre_build() {
+	fnm install ${_nodever}
+    eval "$(fnm env --shell bash)"
+    fnm use ${_nodever}
+	npm ci
+}
+
+do_build() {
+	# Manually build sqlcipher extension to avoid build failure
+	pushd node_modules/@signalapp/sqlcipher/deps/extension
+	cargo build --release --target ${XBPS_RUST_TARGET}
+	popd
+
+	npm run build-packages
+	node desktop --custom-desktop-release --unpacked
+}
+
+do_install() {
+	:
+}
