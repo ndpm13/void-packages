@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Proton Mail
+Comment=Proton official desktop application for Proton Mail and Proton Calendar
+GenericName=Proton Mail
+Exec=proton-inbox-desktop %U
+Icon=proton-inbox-desktop
+Type=Application
+StartupNotify=true
+Categories=Network;Email;
+MimeType=x-scheme-handler/mailto;

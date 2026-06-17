@@ -1,0 +1,46 @@
+# Template file for 'proton-inbox-desktop'
+pkgname=proton-inbox-desktop
+version=1.13.3
+revision=1
+_electronver=35
+archs="x86_64"
+hostmakedepends="yarn"
+makedepends="electron${_electronver}-devel"
+depends="electron${_electronver}"
+short_desc="Proton official desktop application for Proton Mail and Proton Calendar"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-or-later"
+homepage="https://github.com/ProtonMail/WebClients/tree/main/applications/inbox-desktop"
+distfiles="https://github.com/ProtonMail/WebClients/archive/refs/tags/proton-inbox-desktop@${version}.tar.gz"
+checksum=d94b97316284c0506baf0a6c12ceb03c5094129d1a9c8e5d6886069e0da2bfde
+
+export SENTRYCLI_SKIP_DOWNLOAD=1
+export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+export ELECTRON_OVERRIDE_DIST_PATH="/usr/lib/electron${_electronver}"
+
+pre_build() {
+    # Configure Yarn workspaces to build only inbox-desktop (proton-mail) instead of all applications
+    sed -i 's/"applications\/\*",/"applications\/inbox-desktop",/' package.json
+
+    yarn install
+}
+
+do_build() {
+	yarn workspace proton-inbox-desktop package 
+}
+
+do_install() {
+	cd applications/inbox-desktop
+
+	vmkdir /usr/lib/${pkgname}
+	vcopy out/"Proton Mail"-linux-*/resources usr/lib/${pkgname}/resources
+
+	sed "s/@electronver@/${_electronver}/g" ${FILESDIR}/${pkgname}.sh > ${TMPDIR}/${pkgname}.sh
+	vbin ${TMPDIR}/${pkgname}.sh ${pkgname}
+
+    vinstall ${FILESDIR}/${pkgname}.desktop 644 usr/share/applications
+
+    vinstall assets/icons/icon.png 644 usr/share/icons/hicolor/512x512/apps/${pkgname}.png
+    vinstall assets/icons/icon@2x.png 644 usr/share/icons/hicolor/1024x1024/apps/${pkgname}.png
+    vinstall assets/linux/icon.svg 644 usr/share/icons/hicolor/scalable/apps/${pkgname}.svg
+}
