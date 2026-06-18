@@ -1,0 +1,22 @@
+--- a/apps/desktop/src/auto-launch.ts
++++ b/apps/desktop/src/auto-launch.ts
+@@ -21,6 +21,7 @@ export class AutoLaunch extends BaseAutoLaunch {
+             AutoLaunch.internalInstance = new AutoLaunch({
+                 name: global.vectorConfig.brand || "Element",
+                 isHidden: Store.instance.get("openAtLoginMinimised"),
++                path: "/usr/bin/element-desktop",
+                 mac: {
+                     useLaunchAgent: true,
+                 },
+--- a/apps/desktop/src/electron-main.ts
++++ b/apps/desktop/src/electron-main.ts
+@@ -584,3 +584,9 @@
+ // in order to get the title and icon to show up correctly.
+ // Ref: https://stackoverflow.com/a/77314604/3525780
+ app.setAppUserModelId(buildConfig.appId);
++
++if (process.platform === "linux") {
++    // Set the desktop name explicitly to ensure correct WM_CLASS and Wayland app_id
++    // when running with a system Electron binary.
++    (app as any).setDesktopName("Element");
++}

@@ -1,14 +1,8 @@
-Source: https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/testing/element-desktop/tasje-one-hak.patch
-directories in .hak/hakModules are already symlinked inside node_modules,
-and as such are already being copied by default. this makes tasje fail with:
-```
-thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value:
-FileAlreadyWritten("/node_modules/keytar/package.json")', src/main.rs:200:18
-```
-
---- a/element-desktop/electron-builder.ts.orig
-+++ b/element-desktop/electron-builder.ts
-@@ -74,10 +74,6 @@
+diff --git a/apps/desktop/electron-builder.ts b/apps/desktop/electron-builder.ts
+index 9bcd771..10feaa7 100644
+--- a/apps/desktop/electron-builder.ts
++++ b/apps/desktop/electron-builder.ts
+@@ -114,10 +114,6 @@ const config: Omit<Writable<Configuration>, "electronFuses"> & {
      },
      files: [
          "package.json",
@@ -18,4 +12,4 @@ FileAlreadyWritten("/node_modules/keytar/package.json")', src/main.rs:200:18
 -        },
          "lib/**",
      ],
-     extraResources: [
+     extraResources: ["build/icon.*", "webapp.asar"],
