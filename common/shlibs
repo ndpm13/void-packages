@@ -4601,3 +4601,10 @@ libigloo.so.0 libigloo-0.9.5_1
 libfyaml.so.0 libfyaml-0.9.6_1
 libcpptrace.so.1 cpptrace-1.0.4_1
 libcgif.so.0 cgif-0.5.3_1
+libbge.so.0 bazaar-0.8.1_1
+libmalcontent-0.so.0 malcontent-0.14_1
+pam_malcontent.so malcontent-0.14_1
+libmalcontent-ui-1.so.1 malcontent-0.14_1
+libnss_malcontent.so.2 malcontent-0.14_1
+libgsystemservice-0.so.0 libgsystemservice-0.3.0_1
+libglib-testing-0.so.0 libglib-testing-0.2.0_1
