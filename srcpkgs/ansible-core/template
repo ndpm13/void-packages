@@ -1,6 +1,6 @@
 # Template file for 'ansible-core'
 pkgname=ansible-core
-version=2.21.1
+version=2.21.2
 revision=1
 build_style=python3-pep517
 hostmakedepends="python3-setuptools python3-wheel python3-docutils
@@ -16,7 +16,7 @@ license="GPL-3.0-or-later"
 homepage="https://www.ansible.com/"
 changelog="https://raw.githubusercontent.com/ansible/ansible/stable-${version%.*}/changelogs/CHANGELOG-v${version%.*}.rst"
 distfiles="${PYPI_SITE}/a/ansible_core/ansible_core-${version}.tar.gz"
-checksum=a5536ece95be84de15212b3644cdbbe9cbd9efd62e4e8a544cd6b0b27a083039
+checksum=c6139e662eda1bfb5af16029f12afa5edfc7f95f8cd44281b1bdb434a6d9dc70
 conflicts="ansible<2.10.1_1"
 replaces="ansible-base>=0"
 
