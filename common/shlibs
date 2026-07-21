@@ -378,6 +378,7 @@ libfreebl3.so nss-3.121_1
 libnssdbm3.so nss-3.121_1
 libnssckbi.so nss-3.121_1
 libnss3.so nss-3.121_1
+libfreeblpriv3.so nss-3.125_1
 libcurl.so.4 libcurl-7.75.0_2
 libdaemon.so.0 libdaemon-0.14_1
 libavahi-common.so.3 avahi-libs-0.6.25_1
