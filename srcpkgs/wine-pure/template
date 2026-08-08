@@ -6,7 +6,7 @@ _pkgver=${version/r/-r}
 create_wrksrc=yes
 build_wrksrc=wine-${_pkgver}
 build_style=gnu-configure
-configure_args="$(vopt_with xshm)"
+configure_args="$(vopt_with xshm) $(vopt_if clang '--with-mingw=clang')"
 short_desc="Run Microsoft Windows applications"
 maintainer="Naz <ndpm13@ch-naseem.com>"
 license="LGPL-2.1-or-later"
@@ -23,12 +23,13 @@ checksum="9548390c5042126b6ecf0af2cba477b75aa3e99be9797ea70d5026374c5074f1
 # NOTE: wine depends on specific versions of wine-mono and wine-gecko,
 # check for updates to these packages when updating wine
 
-build_options="mingw staging xshm wow64"
-build_options_default="staging wow64"
+build_options="mingw staging xshm wow64 clang"
+build_options_default="staging wow64 clang"
 desc_option_mingw="Use the MinGW cross compiler to build WinPE DLLs"
 desc_option_staging="Apply the wine-staging patchset"
 desc_option_xshm="Enable support for the X Shared Memory Extension"
 desc_option_wow64="Run 32-bit Windows apps on a purely 64-bit Unix installation"
+desc_option_clang="Build with clang"
 
 
 archs="x86_64"
@@ -45,7 +46,8 @@ fi
 
 hostmakedepends="pkg-config flex gettext
  $(vopt_if mingw "cross-${XBPS_TARGET_MACHINE%-musl}-w64-mingw32")
- $(vopt_if staging 'autoconf')"
+ $(vopt_if staging 'autoconf')
+ $(vopt_if staging 'clang llvm lld')"
 makedepends="gettext-devel glu-devel libSM-devel
  libXext-devel libX11-devel libXpm-devel libXinerama-devel
  libXcomposite-devel libXmu-devel libXxf86vm-devel
@@ -84,6 +86,19 @@ nopie_files="/usr/bin/wine"
 
 if [ "${_nopie}" = yes ]; then
 	nopie_files+=" /usr/bin/wineserver"
+fi
+
+if [ "$build_option_clang" ]; then
+	export CC="clang"
+	export CXX="clang++"
+	export CFLAGS="-O2 -march=${flags["-march"]:-"x86-64-v3"} -mtune=${flags["-mtune"]:-"haswell"} -mfpmath=sse -fwrapv -pipe"
+	export LDFLAGS="-Wl,-O1,--sort-common,--as-needed -fuse-ld=lld"
+
+	if [[ -n "$CROSS_BUILD" ]]; then
+		export CFLAGS+=" --sysroot=${XBPS_CROSS_BASE}"
+		export CXXFLAGS+=" --sysroot=${XBPS_CROSS_BASE}"
+		export LDFLAGS+=" --sysroot=${XBPS_CROSS_BASE}"
+	fi
 fi
 
 post_patch() {
