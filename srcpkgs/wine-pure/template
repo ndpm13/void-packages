@@ -24,7 +24,7 @@ checksum="9548390c5042126b6ecf0af2cba477b75aa3e99be9797ea70d5026374c5074f1
 # check for updates to these packages when updating wine
 
 build_options="mingw staging xshm wow64"
-build_options_default="mingw xshm"
+build_options_default="staging wow64"
 desc_option_mingw="Use the MinGW cross compiler to build WinPE DLLs"
 desc_option_staging="Apply the wine-staging patchset"
 desc_option_xshm="Enable support for the X Shared Memory Extension"
