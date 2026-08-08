@@ -113,6 +113,13 @@ pre_patch() {
 	fi
 }
 
+pre_configure() {
+	./dlls/winevulkan/make_vulkan
+	./tools/make_requests
+	./tools/make_specfiles
+	autoreconf -fi
+}
+
 pre_build() {
 	if [ "${_nopie}" = yes ]; then
 		make ${makejobs} LDFLAGS="$LDFLAGS -no-pie" \
