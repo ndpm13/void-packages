@@ -69,6 +69,7 @@ lib32depends="libXi-32bit>=0 libXinerama-32bit>=0 libXcomposite-32bit>=0
  liberation-fonts-ttf>=0 gnutls-32bit>=0 SDL2-32bit>=0
  wine-pure-common>=${version}_${revision}"
 replaces="libwine>=0"
+nostrip=yes
 # This testsuite might hang indefinitely
 make_check=extended
 
@@ -135,6 +136,10 @@ post_install() {
 	for f in tools/wine/wine*.man; do
 		vman "$f" "${f//man/1}"
 	done
+
+	# Strip Windows binaries
+	llvm-strip --strip-unneeded ${DESTDIR}/usr/lib/wine/i386-windows/*.{dll,exe}
+	llvm-strip --strip-unneeded ${DESTDIR}/usr/lib/wine/x86_64-windows/*.{dll,exe}
 }
 
 wine-pure-devel_package() {
