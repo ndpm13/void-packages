@@ -6,7 +6,10 @@ _pkgver=${version/r/-r}
 create_wrksrc=yes
 build_wrksrc=wine-${_pkgver}
 build_style=gnu-configure
-configure_args="$(vopt_with xshm) $(vopt_if clang '--with-mingw=clang')"
+configure_args="
+ $(vopt_with xshm)
+ $(vopt_if clang '--with-mingw=clang')
+ $(vopt_if ffmpeg '--with-ffmpeg')"
 short_desc="Run Microsoft Windows applications"
 maintainer="Naz <ndpm13@ch-naseem.com>"
 license="LGPL-2.1-or-later"
@@ -23,8 +26,8 @@ checksum="9548390c5042126b6ecf0af2cba477b75aa3e99be9797ea70d5026374c5074f1
 # NOTE: wine depends on specific versions of wine-mono and wine-gecko,
 # check for updates to these packages when updating wine
 
-build_options="mingw staging xshm wow64 clang"
-build_options_default="staging wow64 clang"
+build_options="mingw staging xshm wow64 clang ffmpeg"
+build_options_default="staging wow64 clang ffmpeg"
 desc_option_mingw="Use the MinGW cross compiler to build WinPE DLLs"
 desc_option_staging="Apply the wine-staging patchset"
 desc_option_xshm="Enable support for the X Shared Memory Extension"
@@ -56,7 +59,8 @@ makedepends="gettext-devel glu-devel libSM-devel
  freetype-devel pulseaudio-devel giflib-devel
  v4l-utils-devel fontconfig-devel gnutls-devel dbus-devel sane-devel
  libpcap-devel cups-devel ocl-icd-devel vulkan-loader-devel gst-plugins-base1-devel
- SDL2-devel"
+ SDL2-devel
+ $(vopt_if ffmpeg 'ffmpeg-devel')"
 depends="libXi libXinerama libXcomposite libXcursor
  desktop-file-utils hicolor-icon-theme liberation-fonts-ttf
  gnutls SDL2 wine-pure-common>=${version}_${revision}"
