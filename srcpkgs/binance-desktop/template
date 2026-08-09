@@ -1,0 +1,21 @@
+# Template file for 'binance-desktop'
+pkgname=binance-desktop
+version=2.4.1
+revision=1
+archs="x86_64"
+depends="vulkan-loader"
+short_desc="Binance desktop application"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="custom:Proprietary"
+homepage="https://www.binance.com"
+distfiles="https://download.binance.com/desktop/linux/production/binance-${version}-amd64-linux.deb"
+checksum=de369ced61b613afc77f8ab0f24119bc40fc8b3074424f477ac401a96a42b5f7
+
+do_install() {
+	vcopy "*" /
+
+	vmkdir usr/bin
+	ln -sf /opt/Binance/binance ${DESTDIR}/usr/bin/binance
+
+	rm ${DESTDIR}/opt/Binance/libvulkan.so.1
+}
