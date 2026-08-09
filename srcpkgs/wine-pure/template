@@ -1,6 +1,6 @@
 # Template file for 'wine-pure'
 pkgname=wine-pure
-version=11.13
+version=11.15
 revision=1
 _pkgver=${version/r/-r}
 create_wrksrc=yes
@@ -20,8 +20,8 @@ distfiles="https://dl.winehq.org/wine/source/${version%.*}.x/wine-${_pkgver}.tar
 # For zero subversions
 #distfiles="https://dl.winehq.org/wine/source/${version%.*}.0/wine-${_pkgver}.tar.xz
 # https://github.com/wine-staging/wine-staging/archive/v${_pkgver}.tar.gz"
-checksum="9548390c5042126b6ecf0af2cba477b75aa3e99be9797ea70d5026374c5074f1
- 59738ad7f2ca72f4b21a34a1a0edbfb7e60f2d8fd50e337391cf5fdb1cc8d4f0"
+checksum="5046f36dae210b198ea69792774d4401feed975d465eca6c251c9394400ec272
+ 22d6d6b1940907457943ecf3fe5f06eeb70872bd91b99253661923758ab35864"
 
 # NOTE: wine depends on specific versions of wine-mono and wine-gecko,
 # check for updates to these packages when updating wine
