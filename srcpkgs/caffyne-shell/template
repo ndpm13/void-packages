@@ -1,0 +1,40 @@
+# Template file for 'caffyne-shell'
+pkgname=caffyne-shell
+version=0.20260816 # FIXME
+revision=1
+#archs="i686 x86_64"
+#build_wrksrc=
+build_style=python3-pep517
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+#hostmakedepends=""
+#makedepends=""
+#depends=""
+short_desc="Lightweight desktop shell powered by Fabric"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="MIT"
+homepage="https://caffyne.org/"
+#changelog=""
+distfiles="https://github.com/caffyne-org/caffyne-shell/archive/refs/heads/main.tar.gz" # FIXME
+checksum=1031e21b1f884223708cfefd1294becaaafbc05be665bfccc0f25a7a41880b28
+
+post_install() {
+	vlicense README.md # FIXME
+}
+
+caffyne-shell-wallpapers_package() {
+	short_desc+=" - Wallpapers collection"
+	pkg_install() {
+		vmkdir usr/share/backgrounds/${pkgname}
+		vcopy wallpapers/* usr/share/backgrounds/${pkgname}
+	}
+}
+
+caffyne-shell-niri_package() {
+	depends="${sourcepkg}>=${version}_${revision} niri"
+	short_desc+=" - Niri compositor support"
+	metapackage=yes
+}
