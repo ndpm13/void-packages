@@ -1,0 +1,36 @@
+# Template file for 'mcaselector'
+pkgname=mcaselector
+version=2.9
+revision=1
+_jdkver="21.0.8"
+archs="x86_64"
+depends="openjdk21"
+short_desc="Tool to select chunks from Minecraft worlds for deletion or export"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="MIT"
+homepage="https://github.com/Querz/mcaselector"
+changelog="https://github.com/Querz/mcaselector/releases"
+distfiles="https://github.com/Querz/mcaselector/releases/download/${version}/mcaselector-${version}.jar
+ https://github.com/Querz/mcaselector/raw/refs/heads/master/LICENSE
+ https://download2.gluonhq.com/openjfx/${_jdkver}/openjfx-${_jdkver}_linux-x64_bin-sdk.zip"
+checksum="8e35eaa6a5119ce711b53530c22aaac531332e8fdffda2357d16eb6f52327267
+ 2a2fcd639fa5d096eca6b8180dcaa11619eba55097c79323f1b81e5517f97b8a
+ 203530224e01b5a4b65e8c78f2569e5c491115b3523c0678b5b813b28402b562"
+skip_extraction="mcaselector-${version}.jar LICENSE"
+noshlibprovides=yes
+noverifyrdeps=yes
+
+do_install() {
+	vbin ${FILESDIR}/${pkgname}.sh ${pkgname}
+
+	vinstall ${XBPS_SRCDISTDIR}/${pkgname}-${version}/mcaselector-${version}.jar \
+			 644 usr/share/java ${pkgname}.jar
+
+	vinstall ${FILESDIR}/${pkgname}.png 644 \
+			 usr/share/icons/hicolor/512x512/apps
+
+	vmkdir opt/mcaselector/lib/jfx
+	cp -r lib ${DESTDIR}/opt/mcaselector/lib/jfx
+
+	vlicense ${XBPS_SRCDISTDIR}/${pkgname}-${version}/LICENSE
+}
