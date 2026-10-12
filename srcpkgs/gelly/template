@@ -1,0 +1,28 @@
+# Template file for 'gelly'
+pkgname=gelly
+version=1.16.3
+revision=1
+archs="x86_64"
+build_style=cargo
+hostmakedepends="pkg-config gettext just"
+makedepends="glib-devel cairo-devel pango-devel gdk-pixbuf-devel
+ gtk4-devel libadwaita-devel libseccomp-devel"
+short_desc="Native, lightweight music client for Jellyfin and Subsonic"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-only"
+homepage="https://github.com/Fingel/gelly"
+changelog="https://github.com/Fingel/gelly/releases"
+distfiles="https://github.com/Fingel/gelly/archive/refs/tags/v${version}.tar.gz"
+checksum=4763534a45984f2ff8ecaaab4ee469e127385313b4e0dd1a0b8b16fa499aea2f
+
+export LOCALEDIR=${DESTDIR}/usr/share/locale
+
+do_patch() {
+	vsed "s|target/release|target/${RUST_TARGET}/release|" \
+		-i justfile
+}
+
+do_install() {
+	just prefix=${DESTDIR}/usr install
+	rm -f ${DESTDIR}/usr/share/glib-2.0/schemas/gschemas.compiled
+}
