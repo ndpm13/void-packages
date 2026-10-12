@@ -13,8 +13,8 @@ short_desc="Noid Linux Welcome Screen"
 maintainer="Naz <ndpm13@ch-naseem.com>"
 license="GPL-3.0-or-later"
 homepage="https://forge.ch-naseem.com/noid-linux/noid-welcome"
-distfiles="https://github.com/noid-linux/noid-welcome/archive/refs/tags/v${version}.tar.gz"
-checksum=3425e416c368867d89eee9584908476332cb6e51a6bdfb0f8623e7329053b565
+distfiles="https://github.com/noid-linux/noid-welcome/archive/refs/heads/main.tar.gz"
+checksum=87cb378e0bc575ffa2d5f5b3afede344dd54628102ebeafa947ba5e3beac0885
 
 do_build() {
 	CARGO="cargo auditable" \
