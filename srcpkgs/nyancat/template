@@ -1,0 +1,18 @@
+# Template file for 'nyancat'
+pkgname=nyancat
+version=1.5.2
+revision=1
+archs="x86_64"
+build_style=gnu-makefile
+short_desc="Nyancat rendered in your terminal"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="NCSA"
+homepage="http://nyancat.dakko.us/"
+changelog="https://github.com/klange/nyancat/raw/refs/heads/master/CHANGELOG"
+distfiles="https://github.com/klange/nyancat/archive/refs/tags/${version}.tar.gz"
+checksum=88cdcaa9c7134503dd0364a97fa860da3381a09cb555c3aae9918360827c2032
+
+do_install() {
+	vbin src/nyancat
+	vman nyancat.1
+}
