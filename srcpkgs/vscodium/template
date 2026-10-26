@@ -1,0 +1,45 @@
+# Template file for 'vscodium'
+pkgname=vscodium
+version=1.143.17183
+revision=1
+archs="x86_64"
+#build_wrksrc=
+#build_style=gnu-configure
+build_helper=rust
+#configure_args=""
+#make_build_args=""
+#make_install_args=""
+#conf_files=""
+#make_dirs="/var/log/dir 0755 root root"
+hostmakedepends="jq git nodejs python3 pkg-config rustup"
+makedepends="libX11-devel libxkbfile-devel"
+#depends=""
+short_desc="Free/Libre Open Source Software Build of VSCode"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="MIT"
+homepage="https://vscodium.com/"
+changelog="https://github.com/VSCodium/vscodium/releases"
+distfiles="https://github.com/VSCodium/vscodium/archive/refs/tags/${version}.tar.gz"
+checksum=ff2f4cf8df0757d0adac080e80387139932e00a247ae02587c1bde3dcba10962
+
+do_build() {
+	# Export necessary environment variables
+	export SHOULD_BUILD="yes"
+	export SHOULD_BUILD_REH="no"
+	export CI_BUILD="no"
+	export OS_NAME="linux"
+	export VSCODE_ARCH="x64"
+	export VSCODE_QUALITY="stable"
+	export RELEASE_VERSION="${version}"
+
+	. get_repo.sh
+	. build.sh
+}
+
+do_install() {
+	:
+}
+
+post_install() {
+	vlicense LICENSE
+}
