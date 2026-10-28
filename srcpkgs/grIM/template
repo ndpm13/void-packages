@@ -1,0 +1,21 @@
+# Template file for 'grIM'
+pkgname=grIM
+version=0.1.0+0fcd3bc86d
+revision=1
+archs="x86_64"
+build_style=configure
+build_helper=rust
+configure_args="--prefix=/usr"
+make_build_args="build"
+hostmakedepends="blueprint-compiler pkg-config cargo cargo-auditable"
+makedepends="gtk4-devel libwebkitgtk60-devel"
+short_desc="Tabbed IM hub built with gtk4-rs and webkit6"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="GPL-3.0-or-later"
+homepage="https://forge.ch-naseem.com/ndpm13/grIM"
+changelog="https://forge.ch-naseem.com/ndpm13/grIM/src/branch/master/CHANGELOG.md"
+distfiles="https://forge.ch-naseem.com/ndpm13/grIM/archive/${version#*+}.tar.gz"
+checksum=c5902af72a02047f12ca8a71b6c270256bf0c56e0cbef5813153be953d22d814
+
+export CARGO="cargo auditable"
+export CARGO_OPTS="--release"
