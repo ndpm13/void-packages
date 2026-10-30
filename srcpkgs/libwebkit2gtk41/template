@@ -1,6 +1,6 @@
 # Template file for 'libwebkit2gtk41'
 pkgname=libwebkit2gtk41
-version=2.50.4
+version=2.54.2
 revision=1
 build_style=cmake
 build_helper="gir"
@@ -36,7 +36,7 @@ maintainer="Orphaned <orphan@voidlinux.org>"
 license="LGPL-2.1-or-later, BSD-2-Clause"
 homepage="https://webkitgtk.org/"
 distfiles="https://webkitgtk.org/releases/webkitgtk-${version}.tar.xz"
-checksum=d3bfa473845acfab72635bada5e0d134fda6792c5b95c5c5cd141b46125bd8e4
+checksum=a76345b391bef6211fb5ab6cfab2e86b285d18cda17cbb9ade595f1252b86065
 make_check=no # TODO
 
 build_options="gir x11 bubblewrap jit sampling_profiler minibrowser
@@ -128,6 +128,9 @@ case "$XBPS_TARGET_MACHINE" in
 		# Disable ANGLE on armv6 for now.
 		# Requires support for lock-free atomics (armv6k+).
 		configure_args+=" -DENABLE_WEBGL=OFF"
+
+		CFLAGS+=" -march=armv6zk"
+		CXXFLAGS+=" -march=armv6zk"
 		;;
 esac
 

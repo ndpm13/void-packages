@@ -1,0 +1,58 @@
+diff --git a/Source/bmalloc/libpas/src/libpas/pas_utils.h b/Source/bmalloc/libpas/src/libpas/pas_utils.h
+index 433b26f0..e02e421c 100644
+--- a/Source/bmalloc/libpas/src/libpas/pas_utils.h
++++ b/Source/bmalloc/libpas/src/libpas/pas_utils.h
+@@ -920,7 +920,7 @@ static PAS_ALWAYS_INLINE uintptr_t pas_opaque(uintptr_t value)
+     return value;
+ }
+ 
+-#if PAS_COMPILER(CLANG) || PAS_ARM32
++#if PAS_COMPILER(CLANG) || PAS_ARM32 || UINTPTR_MAX == UINT32_MAX
+ 
+ struct pas_pair;
+ typedef struct pas_pair pas_pair;
+@@ -1011,7 +1011,7 @@ PAS_IGNORE_WARNINGS_BEGIN("atomic-alignment")
+ #endif
+     return __c11_atomic_compare_exchange_weak((_Atomic pas_pair*)raw_ptr, &old_value, new_value, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+ PAS_IGNORE_WARNINGS_END
+-#elif PAS_ARM32
++#elif PAS_ARM32 || UINTPTR_MAX == UINT32_MAX
+     PAS_ASSERT_IF(true, !"Should not be reached");
+     PAS_UNUSED_PARAM(raw_ptr);
+     PAS_UNUSED_PARAM(old_value);
+@@ -1061,7 +1061,7 @@ PAS_IGNORE_WARNINGS_BEGIN("atomic-alignment")
+     __c11_atomic_compare_exchange_strong((_Atomic pas_pair*)raw_ptr, &old_value, new_value, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+ PAS_IGNORE_WARNINGS_END
+     return old_value;
+-#elif PAS_ARM32
++#elif PAS_ARM32 || UINTPTR_MAX == UINT32_MAX
+     PAS_ASSERT_IF(true, !"Should not be reached");
+     PAS_UNUSED_PARAM(raw_ptr);
+     PAS_UNUSED_PARAM(new_value);
+@@ -1089,7 +1089,7 @@ static inline pas_pair pas_atomic_load_pair_relaxed(void* raw_ptr)
+ PAS_IGNORE_WARNINGS_BEGIN("atomic-alignment")
+     return __c11_atomic_load((_Atomic pas_pair*)raw_ptr, __ATOMIC_RELAXED);
+ PAS_IGNORE_WARNINGS_END
+-#elif PAS_ARM32
++#elif PAS_ARM32 || UINTPTR_MAX == UINT32_MAX
+     PAS_ASSERT_IF(true, !"Should not be reached");
+     PAS_UNUSED_PARAM(raw_ptr);
+     return *(pas_pair*)raw_ptr;
+@@ -1118,7 +1118,7 @@ static inline void pas_atomic_store_pair(void* raw_ptr, pas_pair value)
+ PAS_IGNORE_WARNINGS_BEGIN("atomic-alignment")
+     __c11_atomic_store((_Atomic pas_pair*)raw_ptr, value, __ATOMIC_SEQ_CST);
+ PAS_IGNORE_WARNINGS_END
+-#elif PAS_ARM32
++#elif PAS_ARM32 || UINTPTR_MAX == UINT32_MAX
+     PAS_ASSERT_IF(true, !"Should not be reached");
+     PAS_UNUSED_PARAM(raw_ptr);
+     PAS_UNUSED_PARAM(value);
+@@ -1134,7 +1134,7 @@ static inline void pas_atomic_store_pair_relaxed(void* raw_ptr, pas_pair value)
+ PAS_IGNORE_WARNINGS_BEGIN("atomic-alignment")
+     __c11_atomic_store((_Atomic pas_pair*)raw_ptr, value, __ATOMIC_RELAXED);
+ PAS_IGNORE_WARNINGS_END
+-#elif PAS_ARM32
++#elif PAS_ARM32 || UINTPTR_MAX == UINT32_MAX
+     PAS_ASSERT_IF(true, !"Should not be reached");
+     PAS_UNUSED_PARAM(raw_ptr);
+     PAS_UNUSED_PARAM(value);
