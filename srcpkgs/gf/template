@@ -1,0 +1,23 @@
+# Template file for 'gf'
+pkgname=gf
+version=2+1c04ed9
+revision=1
+archs="x86_64"
+hostmakedepends="gdb"
+makedepends="libX11-devel freetype-devel"
+depends="gdb"
+short_desc="GDB frontend for Lïnux"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="MIT"
+homepage="https://github.com/nakst/gf"
+distfiles="https://github.com/nakst/gf/archive/${version#*+}.tar.gz"
+checksum=d14ce7a6ca530407ba25333345a9c472de42d410cbae9424530e025b859ac384
+
+do_build() {
+	./build.sh
+}
+
+do_install() {
+	vbin gf2
+	vlicense LICENSE
+}
