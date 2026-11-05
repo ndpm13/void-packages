@@ -1,0 +1,54 @@
+# Template file for 'aseprite'
+pkgname=aseprite
+version=1.3.18.6
+revision=1
+archs="x86_64"
+_skiaver=m124-08a5439a6b
+build_style=cmake
+configure_args="
+ -DCMAKE_BUILD_TYPE=Release
+ -DBUILD_SHARED_LIBS=ON
+ -DUSE_SHARED_CMARK=ON
+ -DUSE_SHARED_CURL=ON
+ -DUSE_SHARED_GIFLIB=ON
+ -DUSE_SHARED_ZLIB=ON
+ -DUSE_SHARED_LIBPNG=ON
+ -DUSE_SHARED_TINYEXIF=ON
+ -DUSE_SHARED_TINYXML=ON
+ -DUSE_SHARED_PIXMAN=ON
+ -DUSE_SHARED_FREETYPE=ON
+ -DUSE_SHARED_HARFBUZZ=ON
+ -DLAF_BACKEND=skia
+ -DSKIA_DIR=${XBPS_BUILDDIR}/${pkgname}-${version}/skia
+ -DSKIA_LIBRARY=${XBPS_BUILDDIR}/${pkgname}-${version}/skia/out/Release-x64/libskia.a
+ -DSKIA_LIBRARY_DIR=${XBPS_BUILDDIR}/${pkgname}-${version}/skia/out/Release-x64
+ -DENABLE_DESKTOP_INTEGRATION=ON
+ -DENABLE_DEVMODE=OFF
+ -DUPDATE_VERSION_WITH_GIT=OFF
+ -DENABLE_NEWS=OFF"
+makedepends="zlib-devel libpng-devel freetype-devel giflib-devel
+ libcurl-devel libxcb-devel libX11-devel libXcursor-devel libXi-devel
+ libXrandr-devel cmark-devel pixman-devel tinyexif-devel tinyxml2-devel
+ libglvnd-devel fontconfig-devel"
+short_desc="Animated sprite editor & pixel art tool"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="custom:Proprietary"
+homepage="https://www.aseprite.org/"
+changelog="https://github.com/aseprite/aseprite/releases"
+distfiles="https://github.com/aseprite/aseprite/releases/download/v${version}/Aseprite-v${version}-Source.zip
+ https://github.com/aseprite/skia/releases/download/${_skiaver}/Skia-Linux-Release-x64.zip"
+checksum="fa9dd07a0c2a5ec91a4166333296bbb9e5c237933b59875d0cfee849d2358306
+ a327e89b244f24cecaa34eb37544bae00d447b96c583d26ed29d6a3ad2e8a8b8"
+skip_extraction="Skia-Linux-Release-x64.zip"
+
+post_extract() {
+	vsrcextract --no-strip-components -C skia Skia-Linux-Release-x64.zip
+}
+
+do_patch() {
+	vsed -i src/ver/CMakeLists.txt -e "s/${version}-dev/${version}/"
+}
+
+post_install() {
+	vlicense EULA.txt
+}
