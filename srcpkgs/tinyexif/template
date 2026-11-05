@@ -1,0 +1,31 @@
+# Template file for 'tinyexif'
+pkgname=tinyexif
+version=1.0.3+21d6cf7
+revision=1
+archs="x86_64"
+build_style=cmake
+makedepends="tinyxml2-devel"
+short_desc="Tiny ISO-compliant C++ EXIF and XMP parsing library for JPEG"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="BSD-2-Clause"
+homepage="https://github.com/aseprite/TinyEXIF"
+distfiles="https://github.com/aseprite/TinyEXIF/archive/${version#*+}.tar.gz"
+checksum=1188b35cd51ef22929117e851e3b9931f35381d838f854f58cf4106b98aaa593
+
+post_install() {
+	tail \
+		--lines $(tac README.md | grep "Copyright" -n | awk -F: '{ print $1 }') \
+		README.md > LICENSE
+
+	vlicense LICENSE
+}
+
+tinyexif-devel_package() {
+	depends="tinyexif-${version}_${revision}"
+	short_desc+=" - development files"
+	pkg_install() {
+		vmove usr/include
+		vmove usr/lib/cmake
+		vmove "usr/lib/*.so"
+	}
+}

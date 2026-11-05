@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6ffad04..c68598f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -75,6 +75,8 @@ endif()
+ # to distinguish between debug and release lib
+ set(CMAKE_DEBUG_POSTFIX "d")
+ 
++find_package(tinyxml2 REQUIRED)
++
+ if(BUILD_SHARED_LIBS)
+ 	add_library(TinyEXIF SHARED TinyEXIF.cpp TinyEXIF.h)
+ 
