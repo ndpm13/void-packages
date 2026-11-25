@@ -3,9 +3,9 @@ pkgname=sable-desktop
 version=26.11.4
 revision=1
 archs="x86_64"
-hostmakedepends="pnpm python3 cargo pkg-config"
-makedepends="glib-devel gtk+3-devel libsoup3-devel
- libwebkit2gtk41-devel nspr-devel nss-devel"
+build_helper=rust
+hostmakedepends="pnpm cargo cargo-auditable"
+makedepends=""
 depends="vulkan-loader"
 short_desc="Almost stable Matrix client"
 maintainer="Naz <ndpm13@ch-naseem.com>"
@@ -20,22 +20,12 @@ pre_build() {
 }
 
 do_build() {
-	pnpm tauri:cef build --no-updater
+	cargo auditable install wasm-bindgen-cli --version $(grep -zoP 'name = "wasm-bindgen"\nversion = "\K[^"]+' Cargo.lock) --root .
+	mv bin/* node_modules/.bin/
+
+	pnpm run build
 }
 
 do_install() {
-	vmkdir opt/${pkgname}
-	vinstall src-tauri/target/release/sable 755 opt/${pkgname}
-	scripts/cef/copy-libs.sh release ${DESTDIR}/opt/${pkgname}
-	rm ${DESTDIR}/opt/${pkgname}/libvulkan.so.1
-
-	vmkdir usr/bin
-	ln -sf /opt/${pkgname}/sable ${DESTDIR}/usr/bin/sable
-
-	vinstall ${FILESDIR}/sable.desktop 644 usr/share/applications
-
-	for size in 32 64 128; do
-		vinstall src-tauri/icons/${size}x${size}.png 644 \
-			usr/share/icons/hicolor/${size}x${size}/apps ${pkgname}.png
-	done
+	:
 }
