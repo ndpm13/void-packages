@@ -1,0 +1,30 @@
+# Template file for 'kf6-kappcomponents'
+pkgname=kf6-kappcomponents
+version=1.1.1
+revision=1
+build_style=cmake
+hostmakedepends="extra-cmake-modules gettext"
+makedepends="qt6-base-private-devel qt6-declarative-private-devel
+ kf6-kconfig-devel kf6-kguiaddons-devel kf6-kirigami-devel
+ kf6-ki18n-devel"
+checkdepends="kf6-kcoreaddons kf6-kitemmodels"
+short_desc="Addons to do a full featured KDE application"
+maintainer="Naz <ndpm13@ch-naseem.com>"
+license="LGPL-2.1-or-later"
+homepage="https://invent.kde.org/libraries/kirigami-app-components"
+distfiles="${KDE_SITE}/kirigami-app-components/kirigami-app-components-${version}.tar.xz"
+checksum=f68f4d082933213d82b805217f2fa0690f51df7d00214ddb873812a60a6b830b
+
+if [ "$CROSS_BUILD" ]; then
+	hostmakedepends+=" qt6-declarative-host-tools"
+fi
+
+kf6-kappcomponents-devel_package() {
+	depends="${sourcepkg}>=${version}_${revision}"
+	short_desc+=" - development files"
+	pkg_install() {
+		vmove usr/include
+		vmove usr/lib/cmake
+		vmove "usr/lib/*.so"
+	}
+}
